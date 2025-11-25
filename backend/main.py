@@ -12,6 +12,11 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 import uvicorn
 from pydantic import BaseModel
 from typing import Any, Dict
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # RESPONSE/REQUEST SCHEMAS
 class ReadRequest(BaseModel):
@@ -30,11 +35,14 @@ class WriteResponse(BaseModel):
 
 app = FastAPI()
 
+# Get allowed origins from environment variable
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -185,5 +193,7 @@ async def updateApplicationStatus(application_id: str, status: str = Form(...), 
 
 
 if __name__ == "__main__":
+    # Get port from environment variable with default
+    port = int(os.getenv("PORT", "8000"))
     # This runs the app when you do `python main.py`
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=port)

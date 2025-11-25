@@ -14,19 +14,23 @@ MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = "Main"
 
 if not MONGO_URI:
-    print("❌ MONGO_URI not found in environment variables!")
-    print(f"   Looking for .env at: {dotenv_path}")
     raise ValueError("MONGO_URI is required but not found in .env file")
 
-# ✅ Create global Mongo client with SSL certificate verification
+# Create global Mongo client with SSL certificate verification and connection pooling
 client = AsyncIOMotorClient(
     MONGO_URI,
     tls=True,
-    tlsCAFile=certifi.where()
+    tlsCAFile=certifi.where(),
+    maxPoolSize=50,
+    minPoolSize=10,
+    serverSelectionTimeoutMS=5000,
+    connectTimeoutMS=10000,
+    socketTimeoutMS=10000,
 )
 
 # Access specific database
 db = client[DB_NAME]
 
-print("✅ MongoDB connection initialized (global client)")
-print(f"   Database: {DB_NAME}")
+# Note: MongoDB connection initialized with connection pooling
+# Database: {DB_NAME}, Pool size: 10-50 connections
+
