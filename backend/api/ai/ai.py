@@ -20,6 +20,10 @@ from PyPDF2 import PdfMerger
 # Add parent directory to path to import connectDB
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from connectDB import db
+from logger import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
 
 dotenv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.env"))
 load_dotenv(dotenv_path)
@@ -152,7 +156,7 @@ async def merge_pdfs(form_data: dict, document_list: list):
         output_buffer.seek(0)
         return output_buffer.getvalue()
     except Exception as e:
-        print(f"❌ Error merging PDFs: {e}")
+        logger.error(f"Error merging PDFs: {e}", exc_info=True)
         raise e
 
         
@@ -167,7 +171,7 @@ def load_prompt() -> str:
         with open(prompt_path, "r", encoding="utf-8") as f:
             return f.read()
     except Exception as e:
-        print(f"⚠️ Could not load prompt.md: {e}")
+        logger.warning(f"Could not load prompt.md: {e}")
         return "You are an AI that analyzes medical and income records for SSDI eligibility."
 
 # --------------------------------------------------------
@@ -180,8 +184,8 @@ async def store_documents_in_db(combinedDocument, combinedDocumentName):
     
     try:
         document = ""
-        print("MADE IT HERE")
-        print(document)
+        # Debug checkpoint removed
+        logger.debug(f"Document details: {type(document)}")
         
         medical_doc = {
             "filename": combinedDocumentName,
@@ -196,12 +200,12 @@ async def store_documents_in_db(combinedDocument, combinedDocumentName):
             "filename": combinedDocumentName,
             "document_type": "combined_document"
         }
-        print("MADE IT HERE")
-        print(document)
+        # Debug checkpoint removed
+        logger.debug(f"Document details: {type(document)}")
         return document
     
     except Exception as e:
-        print(f"❌ Error storing documents: {e}")
+        logger.error(f"Error storing documents: {e}", exc_info=True)
         return ""
 
 # --------------------------------------------------------
@@ -246,13 +250,13 @@ async def save_application_to_db(json_result, document, raw_response):
         # Insert into MongoDB
         result = await db.applications.insert_one(application_doc)
         
-        print(f"✅ Application saved to MongoDB with ID: {application_id}")
-        print(f"   MongoDB _id: {result}")
+        logger.info(f"Application saved to MongoDB with ID: {application_id}")
+        logger.debug(f"MongoDB _id: {result}")
         
         return application_id
         
     except Exception as e:
-        print(f"❌ Error saving application to MongoDB: {e}")
+        logger.error(f"Error saving application to MongoDB: {e}", exc_info=True)
         return None
 
 # SAVE USER TO MONGO
@@ -266,7 +270,7 @@ async def save_or_update_user(name: str, socialSecurityNumber: str, application_
     """
     try:
         # Check if user already exists by SSN
-        print(f"🔍 Looking for user with SSN: {socialSecurityNumber}, name: {name}")
+        logger.info("Looking for user in database")
         existing_user = await db.users.find_one({"socialSecurityNumber": socialSecurityNumber})
 
         if existing_user:
@@ -275,7 +279,7 @@ async def save_or_update_user(name: str, socialSecurityNumber: str, application_
                 {"socialSecurityNumber": socialSecurityNumber},
                 {"$addToSet": {"applications": application_id}}  # prevents duplicates
             )
-            print(f"✅ Updated existing user: {existing_user['name']} ({socialSecurityNumber}) with application {application_id}")
+            logger.info(f"Updated existing user with application {application_id}")
             return {
                 "success": True,
                 "user_id": existing_user["user_id"],
@@ -283,7 +287,7 @@ async def save_or_update_user(name: str, socialSecurityNumber: str, application_
             }
 
         else:
-            print(f"👤 Creating new user: {name} with SSN: {socialSecurityNumber}")
+            logger.info(f"Creating new user: {name}")
             # Create a new user document
             user_doc = {
                 "user_id": str(uuid.uuid4()),
@@ -294,7 +298,7 @@ async def save_or_update_user(name: str, socialSecurityNumber: str, application_
             }
 
             result = await db.users.insert_one(user_doc)
-            print(f"✅ Created new user with ID: {user_doc['user_id']}")
+            logger.info(f"Created new user with ID: {user_doc['user_id']}")
             return {
                 "success": True,
                 "user_id": user_doc["user_id"],
@@ -303,7 +307,7 @@ async def save_or_update_user(name: str, socialSecurityNumber: str, application_
             }
 
     except Exception as e:
-        print(f"❌ Error saving or updating user: {e}")
+        logger.error(f"Error saving or updating user: {e}", exc_info=True)
         return {
             "success": False,
             "error": str(e)
@@ -372,7 +376,7 @@ async def ai(form_data, medicalRecordsFile, incomeDocumentsFile):
             for text in stream.text_stream:
                 response_text += text
         
-        print("\n\n--- PROCESSING COMPLETE ---\n")
+        logger.info("Processing complete")
         
         # Extract JSON after streaming is complete
         json_match = re.search(r'<START_OUTPUT>(.*?)<END_OUTPUT>', response_text, re.DOTALL)
@@ -385,10 +389,10 @@ async def ai(form_data, medicalRecordsFile, incomeDocumentsFile):
         
             try:
                 jsonResult = json.loads(json_str)
-                print("✅ JSON parsed successfully")
+                logger.debug("JSON parsed successfully")
 
                 # Store documents in MongoDB
-                print("\n📄 Storing documents in MongoDB...")
+                logger.info("Storing documents in MongoDB")
                 
                 combinedDoc = await merge_pdfs(
                     {"firstName":form_data["firstName"], 
@@ -406,7 +410,7 @@ async def ai(form_data, medicalRecordsFile, incomeDocumentsFile):
                 )
                 
                 # Save application to MongoDB
-                print("\n💾 Saving application to MongoDB...")
+                logger.info("Saving application to MongoDB")
                 application_id = await save_application_to_db(
                     jsonResult, 
                     document, 
@@ -425,14 +429,14 @@ async def ai(form_data, medicalRecordsFile, incomeDocumentsFile):
                 }
                 
             except json.JSONDecodeError as e:
-                print(f"❌ JSON parsing error: {e}")
+                logger.error(f"JSON parsing error: {e}", exc_info=True)
                 return {
                     "success": False,
                     "error": f"Failed to parse JSON response: {str(e)}",
                     "raw_response": response_text
                 }
         else:
-            print("❌ Could not find <START_OUTPUT> and <END_OUTPUT> tags in response")
+            logger.error("Could not find <START_OUTPUT> and <END_OUTPUT> tags in response")
             return {
                 "success": False,
                 "error": "Output tags not found in response",
@@ -440,7 +444,7 @@ async def ai(form_data, medicalRecordsFile, incomeDocumentsFile):
             }
             
     except Exception as e:
-        print(f"❌ Error in AI function: {e}")
+        logger.error(f"Error in AI function: {e}", exc_info=True)
         return {
             "success": False,
             "error": str(e)

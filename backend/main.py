@@ -4,6 +4,8 @@
 # Import Separate Files
 from api.ai.ai import ai
 from api.read.read import read, read_application_by_id, read_all_applications, read_applications_by_user_ssn, update_application_status, read_all_users, get_filtered_applications, approve_application, deny_application
+from api.logger import get_logger
+from api.exceptions import internal_error_exception, not_found_exception, validation_exception
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -17,6 +19,9 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+# Initialize logger
+logger = get_logger(__name__)
 
 # RESPONSE/REQUEST SCHEMAS
 class ReadRequest(BaseModel):
@@ -46,6 +51,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+logger.info(f"CORS configured with origins: {ALLOWED_ORIGINS}")
+
 # REQUEST: MultiStepForm data with file uploads
 # RESPONSE: Processing results with MongoDB document IDs
 # FUNCTIONALITY: Process form data and upload to MongoDB with ordered fields
@@ -63,6 +70,8 @@ async def handle_benefit_application(
     incomeDocumentsFile: UploadFile = File(None)
 ):
     try:
+        logger.info(f"Processing benefit application for {firstName} {lastName}")
+        
         form_data = {
             "firstName": firstName,
             "lastName": lastName,
@@ -84,11 +93,14 @@ async def handle_benefit_application(
         # Check if AI processing was successful
         if not result or not result.get("success"):
             error_msg = result.get("error", "Unknown error") if result else "No response from AI"
-            raise HTTPException(status_code=500, detail=error_msg)
+            logger.error(f"AI processing failed: {error_msg}")
+            raise internal_error_exception(error_msg)
         
         # Extract the JSON result from AI analysis
         json_result = result.get("result", {})
         application_id = result.get("application_id")
+        
+        logger.info(f"Application processed successfully: {application_id}")
         
         return {
             "success": True,
@@ -97,15 +109,15 @@ async def handle_benefit_application(
             "analysis": json_result,
             "applicant": {
                 "name": f"{firstName} {lastName}",
-                "ssn": socialSecurityNumber
+                "ssn": "***-**-****"  # Redacted for security
             }
         }
             
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error in benefit application endpoint: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.error(f"Error in benefit application endpoint: {e}", exc_info=True)
+        raise internal_error_exception("Failed to process application")
 
 # REQUEST: SSN to look up
 # RESPONSE: Data from database
@@ -139,18 +151,22 @@ async def getFilteredApplications():
 
 @app.put("/api/application/approve/{application_id}")
 async def approveApplication(application_id: str):
+    logger.info(f"Approving application: {application_id}")
     result = await approve_application(application_id)
     
     if not result.get("success"):
-        raise HTTPException(status_code=404, detail=result.get("error", "Application not found"))
+        logger.warning(f"Failed to approve application {application_id}: {result.get('error')}")
+        raise not_found_exception(result.get("error", "Application not found"))
     return ReadResponse(data=result)
 
 @app.put("/api/application/deny/{application_id}")
 async def denyApplication(application_id: str):
+    logger.info(f"Denying application: {application_id}")
     result = await deny_application(application_id)
     
     if not result.get("success"):
-        raise HTTPException(status_code=404, detail=result.get("error", "Application not found"))
+        logger.warning(f"Failed to deny application {application_id}: {result.get('error')}")
+        raise not_found_exception(result.get("error", "Application not found"))
     return ReadResponse(data=result)
     
     
@@ -160,10 +176,12 @@ async def denyApplication(application_id: str):
 # FUNCTIONALITY: Read applications by user SSN
 @app.get("/api/user/applications/{ssn}")
 async def getUserApplications(ssn: str):
+    logger.info(f"Fetching applications for user")
     result = await read_applications_by_user_ssn(ssn)
     
     if not result.get("success"):
-        raise HTTPException(status_code=404, detail=result.get("error", "User not found"))
+        logger.warning(f"User applications not found")
+        raise not_found_exception(result.get("error", "User not found"))
     
     return ReadResponse(data=result)
 
@@ -172,10 +190,12 @@ async def getUserApplications(ssn: str):
 # FUNCTIONALITY: Read a single application by ID
 @app.get("/api/application/{application_id}")
 async def getApplicationById(application_id: str):
+    logger.info(f"Fetching application: {application_id}")
     result = await read_application_by_id(application_id)
     
     if not result.get("success"):
-        raise HTTPException(status_code=404, detail=result.get("error", "Application not found"))
+        logger.warning(f"Application not found: {application_id}")
+        raise not_found_exception(result.get("error", "Application not found"))
     
     return ReadResponse(data=result)
 
@@ -184,10 +204,12 @@ async def getApplicationById(application_id: str):
 # FUNCTIONALITY: Update application status (approve/deny)
 @app.put("/api/application/{application_id}/status")
 async def updateApplicationStatus(application_id: str, status: str = Form(...), admin_notes: str = Form("")):
+    logger.info(f"Updating application {application_id} status to: {status}")
     result = await update_application_status(application_id, status, admin_notes)
     
     if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error", "Failed to update status"))
+        logger.error(f"Failed to update application {application_id}: {result.get('error')}")
+        raise validation_exception(result.get("error", "Failed to update status"))
     
     return ReadResponse(data=result)
 
@@ -195,5 +217,6 @@ async def updateApplicationStatus(application_id: str, status: str = Form(...), 
 if __name__ == "__main__":
     # Get port from environment variable with default
     port = int(os.getenv("PORT", "8000"))
+    logger.info(f"Starting server on port {port}")
     # This runs the app when you do `python main.py`
     uvicorn.run(app, host="127.0.0.1", port=port)
