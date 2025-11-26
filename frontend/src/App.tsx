@@ -1,9 +1,12 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Lazy load all pages for better performance
 const Landing = lazy(() => import('./pages/Landing/Landing'));
+const Login = lazy(() => import('./pages/Login/Login'));
+const Signup = lazy(() => import('./pages/Signup/Signup'));
 const UserPage = lazy(() => import('./pages/UserPage/UserPage'));
 const UserFormPage = lazy(() => import('./pages/UserFormPage/UserFormPage'));
 const UserApplicationDetail = lazy(() => import('./pages/UserApplicationDetail/UserApplicationDetail'));
@@ -25,11 +28,33 @@ function App() {
           }>
             <Routes>
               <Route path="/" element={<Landing />} />
-              <Route path="/user" element={<UserPage />} />
-              <Route path="/user/form" element={<UserFormPage />} />
-              <Route path="/user/detail/:applicationId" element={<UserApplicationDetail />} />
-              <Route path="/admin" element={<AdminDash />} />
-              <Route path="/admin/detail/:applicationId" element={<ApplicationDetail />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/user" element={
+                <ProtectedRoute>
+                  <UserPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/user/form" element={
+                <ProtectedRoute>
+                  <UserFormPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/user/detail/:applicationId" element={
+                <ProtectedRoute>
+                  <UserApplicationDetail />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminDash />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/detail/:applicationId" element={
+                <ProtectedRoute requireAdmin={true}>
+                  <ApplicationDetail />
+                </ProtectedRoute>
+              } />
             </Routes>
           </Suspense>
         </div>

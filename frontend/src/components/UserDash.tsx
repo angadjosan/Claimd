@@ -1,13 +1,8 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle, XCircle, AlertCircle, Plus, LogOut } from "lucide-react";
 import { authService } from '../services/auth';
 import { config } from '../config/env';
-
-interface UserData {
-  name: string;
-  user_id: string;
-}
 
 interface Application {
   application_id: string;
@@ -34,13 +29,9 @@ interface DatabaseUser {
 }
 
 export default function UserDash() {
-  const [userData, setUserData] = useState<UserData | null>(null);
   const [databaseUser, setDatabaseUser] = useState<DatabaseUser | null>(null);
-  const [formData, setFormData] = useState({ username: "", password: "" });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [loginError, setLoginError] = useState<string | null>(null);
-  const [isAdminLogin, setIsAdminLogin] = useState(false);
   const navigate = useNavigate();
 
   const getConfidenceColor = (confidence: number) => {
@@ -183,92 +174,34 @@ export default function UserDash() {
     }
   };
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError(null);
-    
-    if (!formData.username.trim() || !formData.password.trim()) {
-      setLoginError("Please enter both username and password");
-      return;
-    }
-
-    try {
-      if (isAdminLogin) {
-        // Admin login
-        await authService.adminLogin({
-          admin_id: formData.username.trim(),
-          admin_key: formData.password.trim(),
-        });
-
-        // Navigate to admin dashboard
-        navigate("/admin");
-      } else {
-        // Regular user login
-        const response = await authService.login({
-          user_id: formData.username.trim(),
-          password: formData.password.trim(),
-        });
-
-        // Set user data and fetch applications
-        const userData = {
-          name: response.user_id,
-          user_id: response.user_id,
-        };
-        setUserData(userData);
-
-        // Fetch user applications
-        const userApplications = await fetchUserApplications(response.user_id);
-        if (userApplications) {
-          setDatabaseUser(userApplications);
-        }
-      }
-      
-      setFormData({ username: "", password: "" });
-    } catch (error: any) {
-      console.error("Login error:", error);
-      setLoginError(error.message || "Invalid credentials. Please try again.");
-    }
-  };
-
   const handleSignOut = () => {
     authService.logout();
-    setUserData(null);
     setDatabaseUser(null);
-    navigate("/");
+    navigate("/login");
   };
 
   useEffect(() => {
     const initializeData = async () => {
-      // Check if user is already authenticated
+      // Verify user is authenticated (should be guaranteed by ProtectedRoute, but double-check)
       const userInfo = await authService.verifyToken();
 
-      if (userInfo) {
-        // User is authenticated
-        if (userInfo.is_admin) {
-          // Admin user, redirect to admin dashboard
-          navigate("/admin");
-          return;
-        }
+      if (!userInfo) {
+        // Not authenticated, redirect to login
+        navigate("/login");
+        return;
+      }
 
-        // Regular user, set up data
-        const userData = {
-          name: userInfo.user_id,
-          user_id: userInfo.user_id,
-        };
-        setUserData(userData);
-
-        // Fetch user applications from backend
-        try {
-          const userApplications = await fetchUserApplications(userInfo.user_id);
-          
-          if (!userApplications) {
-            setError("Failed to load your applications. Please try again.");
-          } else {
-            setDatabaseUser(userApplications);
-          }
-        } catch (error) {
-          setError("An error occurred while loading your data.");
+      // Fetch user applications from backend
+      try {
+        const userApplications = await fetchUserApplications(userInfo.user_id);
+        
+        if (!userApplications) {
+          setError("Failed to load your applications. Please try again.");
+        } else {
+          setDatabaseUser(userApplications);
         }
+      } catch (error) {
+        setError("An error occurred while loading your data.");
       }
       
       setIsLoading(false);
@@ -283,112 +216,6 @@ export default function UserDash() {
         <div className="flex items-center space-x-3">
           <div className="w-6 h-6 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
           <span className="text-lg text-gray-600 font-light">Loading...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!userData) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-6 py-20">
-        <div className="max-w-md w-full">
-          {/* Header */}
-          <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-thin text-gray-900 mb-2">
-              Sign In
-            </h1>
-            <p className="text-gray-600 font-light mb-4">
-              Access your disability benefits dashboard
-            </p>
-            <div className="flex justify-center space-x-4">
-              <button
-                type="button"
-                onClick={() => setIsAdminLogin(false)}
-                className={`px-4 py-2 text-sm font-light transition-all ${
-                  !isAdminLogin
-                    ? "border-b-2 border-gray-900 text-gray-900"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                User Login
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsAdminLogin(true)}
-                className={`px-4 py-2 text-sm font-light transition-all ${
-                  isAdminLogin
-                    ? "border-b-2 border-gray-900 text-gray-900"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Caseworker Login
-              </button>
-            </div>
-          </div>
-
-          {/* Form */}
-          <div className="bg-white border border-gray-300 p-8">
-            {loginError && (
-              <div className="mb-6 border border-red-300 bg-red-50 p-4 flex items-start space-x-3">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-800 font-light">{loginError}</p>
-              </div>
-            )}
-            <form onSubmit={handleSignIn} className="space-y-6">
-              <div>
-                <label
-                  htmlFor="username"
-                  className="block text-sm font-light text-gray-600 mb-2 uppercase tracking-wider text-xs"
-                >
-                  {isAdminLogin ? "Caseworker ID" : "Email"}
-                </label>
-                <input
-                  type="text"
-                  id="username"
-                  value={formData.username}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      username: e.target.value,
-                    }))
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 focus:border-gray-900 transition-colors duration-200 font-light"
-                  placeholder={isAdminLogin ? "Enter caseworker ID" : "Enter your email"}
-                  required
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-light text-gray-600 mb-2 uppercase tracking-wider text-xs"
-                >
-                  {isAdminLogin ? "Caseworker Key" : "Password"}
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      password: e.target.value,
-                    }))
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 focus:border-gray-900 transition-colors duration-200 font-light"
-                  placeholder={isAdminLogin ? "Enter caseworker key" : "Enter your password"}
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-gray-900 text-white py-3 hover:bg-gray-800 transition-all duration-200 font-light"
-              >
-                Sign In
-              </button>
-            </form>
-          </div>
         </div>
       </div>
     );
@@ -548,7 +375,7 @@ export default function UserDash() {
               </p>
               <p className="text-gray-500 font-light text-sm mt-2">
                 Please check back later for updates, or submit a new one if you
-                haven’t yet.
+                haven't yet.
               </p>
             </div>
           </div>

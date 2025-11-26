@@ -9,6 +9,12 @@ export interface LoginCredentials {
   password?: string;
 }
 
+export interface SignupCredentials {
+  name: string;
+  email: string;
+  password: string;
+}
+
 export interface AdminLoginCredentials {
   admin_id: string;
   admin_key: string;
@@ -44,6 +50,33 @@ class AuthService {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Login failed' }));
       throw new Error(error.detail || 'Login failed');
+    }
+
+    const data: AuthResponse = await response.json();
+    this.setToken(data.access_token);
+    this.setUserInfo({
+      user_id: data.user_id,
+      is_admin: data.is_admin,
+    });
+
+    return data;
+  }
+
+  /**
+   * Register a new user
+   */
+  async signup(credentials: SignupCredentials): Promise<AuthResponse> {
+    const response = await fetch(`${config.apiUrl}/api/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(credentials),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Registration failed' }));
+      throw new Error(error.detail || 'Registration failed');
     }
 
     const data: AuthResponse = await response.json();

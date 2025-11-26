@@ -46,11 +46,11 @@ export default function AdminDash() {
 
   useEffect(() => {
     const fetchApplications = async () => {
-      // Verify admin authentication first
+      // Verify admin authentication (should be guaranteed by ProtectedRoute, but double-check)
       const userInfo = await authService.verifyToken();
       if (!userInfo || !userInfo.is_admin) {
-        // Not authenticated as admin, redirect to user page
-        navigate('/user');
+        // Not authenticated as admin, redirect to login
+        navigate('/login');
         return;
       }
 
@@ -159,7 +159,7 @@ export default function AdminDash() {
 
   const handleSignOut = () => {
     authService.logout();
-    navigate('/');
+    navigate('/login');
   };
 
   if (loading) {
