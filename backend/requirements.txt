@@ -22,3 +22,4 @@ pypdf2
 certifi
 PyJWT==2.8.0
 slowapi==0.1.9
+passlib[bcrypt]==1.7.4

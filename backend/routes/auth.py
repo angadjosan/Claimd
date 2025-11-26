@@ -2,8 +2,11 @@
 Authentication endpoints for token generation.
 """
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from typing import Optional
+import uuid
+from datetime import datetime, timezone
+from passlib.context import CryptContext
 from middleware.auth import create_user_token, create_admin_token, get_current_user, get_current_admin
 from utils.logger import get_logger
 from utils.admin_utils import verify_admin, list_admins, add_admin, remove_admin
@@ -11,13 +14,23 @@ from db.connectDB import db
 
 logger = get_logger(__name__)
 
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 router = APIRouter(tags=["Authentication"])
+
+
+class RegisterRequest(BaseModel):
+    """Request model for user registration."""
+    name: str = Field(..., description="User's full name")
+    email: EmailStr = Field(..., description="User's email address")
+    password: str = Field(..., min_length=8, description="User's password (minimum 8 characters)")
 
 
 class LoginRequest(BaseModel):
     """Request model for user login."""
     user_id: str = Field(..., description="User's email address")
-    password: Optional[str] = Field(None, description="Password (not verified in this temporary implementation)")
+    password: str = Field(..., description="User's password")
     email: Optional[str] = Field(None, description="User's email address")
 
 
@@ -37,6 +50,82 @@ class TokenResponse(BaseModel):
 
 
 @router.post(
+    "/api/auth/register",
+    response_model=TokenResponse,
+    summary="User registration",
+    description="Register a new user account with email and password.",
+    responses={
+        200: {"description": "Registration successful, token generated"},
+        400: {"description": "Email already registered or invalid data"},
+        500: {"description": "Internal server error"},
+    }
+)
+async def register(request: RegisterRequest):
+    """
+    Register a new user account.
+    
+    - Creates a new user with hashed password
+    - Returns a JWT token for immediate login
+    - Email must be unique
+    """
+    logger.info(f"[AUTH_REGISTER] Registration request for email: {request.email}")
+    
+    try:
+        # Check if user already exists
+        existing_user = await db.users.find_one({"email": request.email})
+        
+        if existing_user:
+            logger.warning(f"[AUTH_REGISTER] Email already registered: {request.email}")
+            raise HTTPException(
+                status_code=400,
+                detail="Email already registered"
+            )
+        
+        # Hash the password
+        hashed_password = pwd_context.hash(request.password)
+        
+        # Create new user document
+        user_id = str(uuid.uuid4())
+        user_doc = {
+            "user_id": user_id,
+            "name": request.name,
+            "email": request.email,
+            "password": hashed_password,
+            "applications": [],
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        }
+        
+        # Insert into database
+        result = await db.users.insert_one(user_doc)
+        logger.info(f"[AUTH_REGISTER] User created successfully: {user_id} (MongoDB _id: {result.inserted_id})")
+        
+        # Generate token for immediate login
+        token = create_user_token(
+            user_id=user_id,
+            email=request.email
+        )
+        
+        logger.info(f"[AUTH_REGISTER] Token generated for new user: {user_id}")
+        
+        return TokenResponse(
+            access_token=token,
+            token_type="bearer",
+            user_id=user_id,
+            is_admin=False
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[AUTH_REGISTER] Error during registration: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred during registration"
+        )
+
+
+@router.post(
     "/api/auth/login",
     response_model=TokenResponse,
     summary="User login",
@@ -50,15 +139,12 @@ async def login(request: LoginRequest):
     """
     Generate a JWT token for a regular user.
     
-    Note: This is a temporary implementation. In production, you should:
-    - Verify user credentials against a database
-    - Hash and compare passwords
-    - Implement rate limiting on login attempts
-    - Add account lockout after failed attempts
+    - Verifies email and password
+    - Returns JWT token on success
     """
     logger.info(f"[AUTH_LOGIN] User login request for email: {request.user_id}")
     
-    # Look up user by email to get their user_id
+    # Look up user by email
     try:
         user = await db.users.find_one({"email": request.user_id})
         
@@ -66,7 +152,23 @@ async def login(request: LoginRequest):
             logger.warning(f"[AUTH_LOGIN] User not found for email: {request.user_id}")
             raise HTTPException(
                 status_code=401,
-                detail="User not found. Please submit an application first."
+                detail="Invalid email or password"
+            )
+        
+        # Verify password
+        stored_password = user.get("password")
+        if not stored_password:
+            logger.warning(f"[AUTH_LOGIN] User has no password set: {request.user_id}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid email or password"
+            )
+        
+        if not pwd_context.verify(request.password, stored_password):
+            logger.warning(f"[AUTH_LOGIN] Invalid password for user: {request.user_id}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid email or password"
             )
         
         user_id = user.get("user_id")
