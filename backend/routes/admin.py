@@ -1,10 +1,11 @@
 """
 Admin endpoints for managing applications.
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from models.api_models import ReadResponse, ErrorResponse
 from utils.exceptions import not_found_exception
 from utils.logger import get_logger
+from middleware.auth import get_current_admin
 from services.application_service import (
     read_all_applications,
     read_all_users,
@@ -28,8 +29,8 @@ router = APIRouter(tags=["Admin"])
         500: {"description": "Internal server error", "model": ErrorResponse}
     }
 )
-async def getAllApplications():
-    logger.info("[GET_APPLICATIONS] Admin fetching all applications")
+async def getAllApplications(current_user: dict = Depends(get_current_admin)):
+    logger.info(f"[GET_APPLICATIONS] Admin {current_user.get('user_id')} fetching all applications")
     result = await read_all_applications()
     return ReadResponse(data=result)
 
@@ -43,8 +44,8 @@ async def getAllApplications():
         500: {"description": "Internal server error", "model": ErrorResponse}
     }
 )
-async def getAllUsers():
-    logger.info("[GET_USERS] Admin fetching all users")
+async def getAllUsers(current_user: dict = Depends(get_current_admin)):
+    logger.info(f"[GET_USERS] Admin {current_user.get('user_id')} fetching all users")
     result = await read_all_users()
     return result
 
@@ -58,8 +59,8 @@ async def getAllUsers():
         500: {"description": "Internal server error", "model": ErrorResponse}
     }
 )
-async def getFilteredApplications():
-    logger.info("[GET_FILTERED] Admin fetching filtered applications (human_final=False)")
+async def getFilteredApplications(current_user: dict = Depends(get_current_admin)):
+    logger.info(f"[GET_FILTERED] Admin {current_user.get('user_id')} fetching filtered applications (human_final=False)")
     result = await get_filtered_applications()
     return result
 
@@ -75,8 +76,8 @@ async def getFilteredApplications():
         500: {"description": "Internal server error", "model": ErrorResponse}
     }
 )
-async def approveApplication(application_id: str):
-    logger.info(f"[APPROVE_ENDPOINT] Admin approving application: {application_id}")
+async def approveApplication(application_id: str, current_user: dict = Depends(get_current_admin)):
+    logger.info(f"[APPROVE_ENDPOINT] Admin {current_user.get('user_id')} approving application: {application_id}")
     result = await approve_application(application_id)
     
     if not result.get("success"):
@@ -99,8 +100,8 @@ async def approveApplication(application_id: str):
         500: {"description": "Internal server error", "model": ErrorResponse}
     }
 )
-async def denyApplication(application_id: str):
-    logger.info(f"[DENY_ENDPOINT] Admin denying application: {application_id}")
+async def denyApplication(application_id: str, current_user: dict = Depends(get_current_admin)):
+    logger.info(f"[DENY_ENDPOINT] Admin {current_user.get('user_id')} denying application: {application_id}")
     result = await deny_application(application_id)
     
     if not result.get("success"):

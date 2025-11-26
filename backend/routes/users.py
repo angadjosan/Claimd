@@ -1,11 +1,12 @@
 """
 User-related endpoints for retrieving user applications.
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from models.api_models import ReadResponse, ErrorResponse
 from utils.exceptions import not_found_exception
 from utils.logger import get_logger
 from services.application_service import read_applications_by_user_ssn
+from middleware.auth import get_current_user
 
 logger = get_logger(__name__)
 
@@ -23,8 +24,8 @@ router = APIRouter(tags=["Users"])
         500: {"description": "Internal server error", "model": ErrorResponse}
     }
 )
-async def getUserApplications(ssn: str):
-    logger.info("[USER_APPLICATIONS] Fetching applications for user by SSN")
+async def getUserApplications(ssn: str, current_user: dict = Depends(get_current_user)):
+    logger.info(f"[USER_APPLICATIONS] Fetching applications for user by SSN (authenticated: {current_user.get('user_id')})")
     result = await read_applications_by_user_ssn(ssn)
     
     if not result.get("success"):

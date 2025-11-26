@@ -10,9 +10,12 @@ from dotenv import load_dotenv
 # Import utilities
 from utils.logger import get_logger
 from db.db_init import create_indexes, verify_database_connection, get_database_stats
+from middleware.rate_limit import limiter
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 # Import routers
-from routes import health, applications, admin, users
+from routes import health, applications, admin, users, auth
 
 # Load environment variables
 load_dotenv()
@@ -28,6 +31,10 @@ app = FastAPI(
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json"
 )
+
+# Add rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # File upload size limit (25MB total request size to allow for 2 x 10MB files + form data)
 MAX_REQUEST_SIZE = 25 * 1024 * 1024  # 25 MB
@@ -98,6 +105,7 @@ async def startup_event():
 
 # Include routers
 app.include_router(health.router)
+app.include_router(auth.router)  # Auth routes (no protection needed)
 app.include_router(applications.router)
 app.include_router(admin.router)
 app.include_router(users.router)

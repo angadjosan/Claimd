@@ -1,7 +1,7 @@
 """
 Application submission and retrieval endpoints.
 """
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 from pydantic import ValidationError
 from models.api_models import (
     BenefitApplicationRequest,
@@ -15,6 +15,7 @@ from utils.exceptions import internal_error_exception, not_found_exception, vali
 from utils.logger import get_logger
 from services.ai_service import ai
 from services.application_service import read, read_application_by_id
+from middleware.auth import get_current_user
 
 logger = get_logger(__name__)
 
@@ -167,7 +168,7 @@ async def handle_benefit_application(
         500: {"description": "Internal server error", "model": ErrorResponse}
     }
 )
-async def mainRead():
+async def mainRead(current_user: dict = Depends(get_current_user)):
     result = await read()
     return ReadResponse(data=result)
 
@@ -183,8 +184,8 @@ async def mainRead():
         500: {"description": "Internal server error", "model": ErrorResponse}
     }
 )
-async def getApplicationById(application_id: str):
-    logger.info(f"[GET_APPLICATION] Fetching application by ID: {application_id}")
+async def getApplicationById(application_id: str, current_user: dict = Depends(get_current_user)):
+    logger.info(f"[GET_APPLICATION] Fetching application by ID: {application_id} (authenticated: {current_user.get('user_id')})")
     result = await read_application_by_id(application_id)
     
     if not result.get("success"):

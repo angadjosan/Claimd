@@ -20,3 +20,5 @@ uvicorn==0.38.0
 motor
 pypdf2
 certifi
+PyJWT==2.8.0
+slowapi==0.1.9
