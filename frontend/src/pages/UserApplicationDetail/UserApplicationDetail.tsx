@@ -20,7 +20,7 @@ export default function UserApplicationDetail() {
         const data = await api.getApplicationById(applicationId);
         setApplication(data);
       } catch (error) {
-        console.error('Error fetching application:', error);
+        // Error fetching application
       } finally {
         setLoading(false);
       }

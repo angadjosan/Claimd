@@ -38,6 +38,8 @@ export default function UserDash() {
   const [databaseUser, setDatabaseUser] = useState<DatabaseUser | null>(null);
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const getConfidenceColor = (confidence: number) => {
@@ -140,7 +142,6 @@ export default function UserDash() {
       }
 
       const usersResult = await usersResponse.json();
-      console.log("Fetched all users from API:", usersResult);
 
       if (!usersResult.success || !usersResult.users) {
         throw new Error("Invalid users API response");
@@ -152,11 +153,8 @@ export default function UserDash() {
       );
 
       if (!matchingUser) {
-        console.log("No user found with name:", userName);
         return null;
       }
-
-      console.log("Found matching user:", matchingUser);
 
       // Step 3: Fetch applications for this user using their SSN
       const appResponse = await fetch(
@@ -171,7 +169,6 @@ export default function UserDash() {
 
       if (appResponse.ok) {
         const appResult = await appResponse.json();
-        console.log("Fetched user applications from API:", appResult);
 
         if (appResult.data.success && appResult.data.user) {
           // Map backend data to frontend format
@@ -220,13 +217,14 @@ export default function UserDash() {
         throw new Error("API response not ok");
       }
     } catch (error) {
-      console.error("API call failed:", error);
       return null;
     }
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginError(null);
+    
     if (formData.username.trim() && formData.password.trim()) {
       // Check for admin login
       if (
@@ -252,14 +250,25 @@ export default function UserDash() {
         ssn: formData.password.trim(), // Using password as SSN for user matching
       };
 
-      Cookies.set("userData", JSON.stringify(userData), { expires: 7 });
-      setUserData(userData);
+      try {
+        Cookies.set("userData", JSON.stringify(userData), { expires: 7 });
+        setUserData(userData);
 
-      // Fetch user applications from backend by name
-      const userApplications = await fetchUserApplications(userData.name);
-      setDatabaseUser(userApplications);
-
-      setFormData({ username: "", password: "" });
+        // Fetch user applications from backend by name
+        const userApplications = await fetchUserApplications(userData.name);
+        
+        if (!userApplications) {
+          setLoginError("User not found. Please check your credentials.");
+          Cookies.remove("userData");
+          setUserData(null);
+          return;
+        }
+        
+        setDatabaseUser(userApplications);
+        setFormData({ username: "", password: "" });
+      } catch (error) {
+        setLoginError("An error occurred while signing in. Please try again.");
+      }
     }
   };
 
@@ -274,16 +283,13 @@ export default function UserDash() {
     const initializeData = async () => {
       // Check for saved user data
       const savedUserData = Cookies.get("userData");
-      console.log("Saved user data from cookie:", savedUserData);
 
       if (savedUserData) {
         try {
           const parsed = JSON.parse(savedUserData);
-          console.log("Parsed user data:", parsed);
 
           // Check if this is an admin user
           if (parsed.role === "admin") {
-            console.log("Admin user detected, redirecting to admin dashboard");
             navigate("/admin");
             return;
           }
@@ -292,9 +298,14 @@ export default function UserDash() {
 
           // Fetch user applications from backend by name
           const userApplications = await fetchUserApplications(parsed.name);
-          setDatabaseUser(userApplications);
+          
+          if (!userApplications) {
+            setError("Failed to load your applications. Please try again.");
+          } else {
+            setDatabaseUser(userApplications);
+          }
         } catch (error) {
-          console.error("Error parsing saved user data:", error);
+          setError("An error occurred while loading your data.");
           Cookies.remove("userData");
         }
       }
@@ -331,6 +342,12 @@ export default function UserDash() {
 
           {/* Form */}
           <div className="bg-white border border-gray-300 p-8">
+            {loginError && (
+              <div className="mb-6 border border-red-300 bg-red-50 p-4 flex items-start space-x-3">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-800 font-light">{loginError}</p>
+              </div>
+            )}
             <form onSubmit={handleSignIn} className="space-y-6">
               <div>
                 <label
@@ -414,6 +431,22 @@ export default function UserDash() {
             </button>
           </div>
         </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="mb-8 border border-red-300 bg-red-50 p-6 flex items-start space-x-3">
+            <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-red-800 font-light mb-3">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="border border-red-600 text-red-600 px-4 py-2 hover:bg-red-600 hover:text-white transition-all duration-200 font-light text-sm"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Applications */}
         {databaseUser ? (
