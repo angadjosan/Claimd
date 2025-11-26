@@ -244,7 +244,7 @@ export default function UserDash() {
         return;
       }
 
-      // Regular user login - use username as name to fetch applications
+      // Regular user login - accept any credentials without validation
       const userData = {
         name: formData.username.trim(),
         ssn: formData.password.trim(), // Using password as SSN for user matching
@@ -254,17 +254,17 @@ export default function UserDash() {
         Cookies.set("userData", JSON.stringify(userData), { expires: 7 });
         setUserData(userData);
 
-        // Fetch user applications from backend by name
-        const userApplications = await fetchUserApplications(userData.name);
-        
-        if (!userApplications) {
-          setLoginError("User not found. Please check your credentials.");
-          Cookies.remove("userData");
-          setUserData(null);
-          return;
+        // Optionally fetch user applications from backend by name (but don't require it)
+        try {
+          const userApplications = await fetchUserApplications(userData.name);
+          if (userApplications) {
+            setDatabaseUser(userApplications);
+          }
+        } catch (error) {
+          // Silently ignore errors - user can still proceed without existing applications
+          console.log("No existing applications found for user");
         }
         
-        setDatabaseUser(userApplications);
         setFormData({ username: "", password: "" });
       } catch (error) {
         setLoginError("An error occurred while signing in. Please try again.");

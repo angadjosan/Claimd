@@ -3,7 +3,7 @@ Application submission and retrieval endpoints.
 """
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from pydantic import ValidationError
-from utils.api_models import (
+from models.api_models import (
     BenefitApplicationRequest,
     BenefitApplicationResponse,
     ReadResponse,

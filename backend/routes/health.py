@@ -2,7 +2,7 @@
 Health check endpoints for monitoring service status and readiness.
 """
 from fastapi import APIRouter, HTTPException
-from utils.api_models import HealthResponse, ReadinessResponse, ErrorResponse
+from models.api_models import HealthResponse, ReadinessResponse, ErrorResponse
 from db.db_init import verify_database_connection, get_database_stats
 from utils.logger import get_logger
 

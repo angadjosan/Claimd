@@ -2,7 +2,7 @@
 Admin endpoints for managing applications.
 """
 from fastapi import APIRouter, HTTPException
-from utils.api_models import ReadResponse, ErrorResponse
+from models.api_models import ReadResponse, ErrorResponse
 from utils.exceptions import not_found_exception
 from utils.logger import get_logger
 from services.application_service import (
