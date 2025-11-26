@@ -21,9 +21,9 @@ from fastapi import UploadFile
 
 # Add parent directory to path to import connectDB
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from backend.api.utils.connectDB import db
-from backend.api.utils.logger import get_logger
-from backend.api.utils.db_retry import retry_on_db_error
+from db.connectDB import db
+from utils.logger import get_logger
+from db.db_retry import retry_on_db_error
 
 # Initialize logger
 logger = get_logger(__name__)

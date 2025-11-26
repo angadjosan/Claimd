@@ -6,7 +6,7 @@ Provides decorators and functions for automatic retry of database operations.
 import asyncio
 from functools import wraps
 from typing import Callable, TypeVar, Any
-from backend.api.utils.logger import get_logger
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
