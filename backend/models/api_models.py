@@ -45,6 +45,7 @@ class BenefitApplicationRequest(BaseModel):
     """Request model for benefit application submission"""
     firstName: str = Field(..., min_length=1, max_length=100, description="Applicant's first name")
     lastName: str = Field(..., min_length=1, max_length=100, description="Applicant's last name")
+    email: str = Field(..., description="Applicant's email address")
     dateOfBirth: str = Field(..., description="Date of birth in YYYY-MM-DD format")
     address: str = Field(..., min_length=1, max_length=500, description="Street address")
     city: str = Field(..., min_length=1, max_length=100, description="City")

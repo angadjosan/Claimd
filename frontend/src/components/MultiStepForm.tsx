@@ -7,6 +7,7 @@ interface FormData {
   // Personal Information
   firstName: string;
   lastName: string;
+  email: string;
   dateOfBirth: string;
   address: string;
   city: string;
@@ -34,6 +35,7 @@ interface FieldValidation {
 const initialFormData: FormData = {
   firstName: '',
   lastName: '',
+  email: '',
   dateOfBirth: '',
   address: '',
   city: '',
@@ -74,6 +76,11 @@ export default function MultiStepForm() {
         if (!value.trim()) return { isValid: false, message: 'This field is required' };
         if (value.trim().length < 2) return { isValid: false, message: 'Must be at least 2 characters' };
         if (!/^[a-zA-Z\s'-]+$/.test(value.trim())) return { isValid: false, message: 'Only letters, spaces, hyphens, and apostrophes allowed' };
+        return { isValid: true, message: 'Valid' };
+      
+      case 'email':
+        if (!value.trim()) return { isValid: false, message: 'Email is required' };
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) return { isValid: false, message: 'Please enter a valid email address' };
         return { isValid: true, message: 'Valid' };
       
       case 'dateOfBirth':
@@ -207,7 +214,8 @@ export default function MultiStepForm() {
       case 1:
         return !!(
           formData.firstName?.trim() && 
-          formData.lastName?.trim() && 
+          formData.lastName?.trim() &&
+          formData.email?.trim() &&
           formData.dateOfBirth?.trim() && 
           formData.address?.trim() && 
           formData.city?.trim() && 
@@ -291,6 +299,35 @@ export default function MultiStepForm() {
                   <p className="text-red-500 text-sm mt-1">{validateField('lastName', formData.lastName).message}</p>
                 )}
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address *
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => updateFormData('email', e.target.value)}
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    formData.email ? (validateField('email', formData.email).isValid ? 'border-green-500' : 'border-red-500') : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your email address"
+                />
+                {formData.email && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    {validateField('email', formData.email).isValid ? (
+                      <CheckCircle className="w-5 h-5 text-green-500" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-red-500" />
+                    )}
+                  </div>
+                )}
+              </div>
+              {formData.email && !validateField('email', formData.email).isValid && (
+                <p className="text-red-500 text-sm mt-1">{validateField('email', formData.email).message}</p>
+              )}
             </div>
 
             <div>

@@ -36,6 +36,7 @@ router = APIRouter(tags=["Applications"])
 async def handle_benefit_application(
     firstName: str = Form(..., description="Applicant's first name"),
     lastName: str = Form(..., description="Applicant's last name"),
+    email: str = Form(..., description="Applicant's email address"),
     dateOfBirth: str = Form(..., description="Date of birth in YYYY-MM-DD format"),
     address: str = Form(..., description="Street address"),
     city: str = Form(..., description="City"),
@@ -54,6 +55,7 @@ async def handle_benefit_application(
             form_data_model = BenefitApplicationRequest(
                 firstName=firstName,
                 lastName=lastName,
+                email=email,
                 dateOfBirth=dateOfBirth,
                 address=address,
                 city=city,

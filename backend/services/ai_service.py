@@ -174,7 +174,8 @@ async def ai(form_data: Dict[str, Any], medicalRecordsFile: Optional[UploadFile]
             logger.info("[AI_PROCESS] Step 3/3: Saving/updating user record")
             if application_id:
                 await save_or_update_user(
-                    f"{form_data['firstName']} {form_data['lastName']}", 
+                    f"{form_data['firstName']} {form_data['lastName']}",
+                    form_data.get("email", ""),
                     form_data["socialSecurityNumber"], 
                     application_id
                 )

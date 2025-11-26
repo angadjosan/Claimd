@@ -6,7 +6,7 @@ import { config } from '../config/env';
 
 interface UserData {
   name: string;
-  ssn: string;
+  user_id: string;
 }
 
 interface Application {
@@ -29,7 +29,7 @@ interface Application {
 
 interface DatabaseUser {
   name: string;
-  ssn: string;
+  user_id: string;
   applications: Application[];
 }
 
@@ -115,41 +115,11 @@ export default function UserDash() {
     }
   };
 
-  const fetchUserApplications = async (userIdOrSsn: string) => {
+  const fetchUserApplications = async (userId: string) => {
     try {
-      // Step 1: Fetch all users from the database
-      const usersResponse = await fetch(`${config.apiUrl}/api/users/all`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...authService.getAuthHeader(),
-        },
-      });
-
-      if (!usersResponse.ok) {
-        throw new Error("Failed to fetch users");
-      }
-
-      const usersResult = await usersResponse.json();
-
-      if (!usersResult.success || !usersResult.users) {
-        throw new Error("Invalid users API response");
-      }
-
-      // Step 2: Find user by SSN or user_id
-      const matchingUser = usersResult.users.find(
-        (user: any) => 
-          user.ssn === userIdOrSsn || 
-          user.name.toLowerCase() === userIdOrSsn.toLowerCase()
-      );
-
-      if (!matchingUser) {
-        return null;
-      }
-
-      // Step 3: Fetch applications for this user using their SSN
+      // Fetch applications for this user using their user_id
       const appResponse = await fetch(
-        `${config.apiUrl}/api/user/applications/${matchingUser.ssn}`,
+        `${config.apiUrl}/api/user/applications/${userId}`,
         {
           method: "GET",
           headers: {
@@ -198,8 +168,8 @@ export default function UserDash() {
           );
 
           return {
-            name: matchingUser.name,
-            ssn: matchingUser.ssn,
+            name: appResult.data.user.name,
+            user_id: appResult.data.user.user_id,
             applications: mappedApplications,
           };
         } else {
@@ -242,7 +212,7 @@ export default function UserDash() {
         // Set user data and fetch applications
         const userData = {
           name: response.user_id,
-          ssn: formData.username.trim(),
+          user_id: response.user_id,
         };
         setUserData(userData);
 
@@ -283,7 +253,7 @@ export default function UserDash() {
         // Regular user, set up data
         const userData = {
           name: userInfo.user_id,
-          ssn: userInfo.user_id,
+          user_id: userInfo.user_id,
         };
         setUserData(userData);
 
@@ -351,7 +321,7 @@ export default function UserDash() {
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                Admin Login
+                Caseworker Login
               </button>
             </div>
           </div>
@@ -370,7 +340,7 @@ export default function UserDash() {
                   htmlFor="username"
                   className="block text-sm font-light text-gray-600 mb-2 uppercase tracking-wider text-xs"
                 >
-                  {isAdminLogin ? "Admin ID" : "User ID / SSN"}
+                  {isAdminLogin ? "Caseworker ID" : "Email"}
                 </label>
                 <input
                   type="text"
@@ -383,7 +353,7 @@ export default function UserDash() {
                     }))
                   }
                   className="w-full px-4 py-3 border border-gray-300 focus:border-gray-900 transition-colors duration-200 font-light"
-                  placeholder={isAdminLogin ? "Enter admin ID" : "Enter your user ID or SSN"}
+                  placeholder={isAdminLogin ? "Enter caseworker ID" : "Enter your email"}
                   required
                 />
               </div>
@@ -393,7 +363,7 @@ export default function UserDash() {
                   htmlFor="password"
                   className="block text-sm font-light text-gray-600 mb-2 uppercase tracking-wider text-xs"
                 >
-                  {isAdminLogin ? "Admin Key" : "Password"}
+                  {isAdminLogin ? "Caseworker Key" : "Password"}
                 </label>
                 <input
                   type="password"
@@ -406,7 +376,7 @@ export default function UserDash() {
                     }))
                   }
                   className="w-full px-4 py-3 border border-gray-300 focus:border-gray-900 transition-colors duration-200 font-light"
-                  placeholder={isAdminLogin ? "Enter admin key" : "Enter your password"}
+                  placeholder={isAdminLogin ? "Enter caseworker key" : "Enter your password"}
                   required
                 />
               </div>

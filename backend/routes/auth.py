@@ -7,6 +7,7 @@ from typing import Optional
 from middleware.auth import create_user_token, create_admin_token, get_current_user, get_current_admin
 from utils.logger import get_logger
 from utils.admin_utils import verify_admin, list_admins, add_admin, remove_admin
+from db.connectDB import db
 
 logger = get_logger(__name__)
 
@@ -14,8 +15,8 @@ router = APIRouter(tags=["Authentication"])
 
 
 class LoginRequest(BaseModel):
-    """Request model for user/admin login."""
-    user_id: str = Field(..., description="User's unique identifier (e.g., SSN or email)")
+    """Request model for user login."""
+    user_id: str = Field(..., description="User's email address")
     password: Optional[str] = Field(None, description="Password (not verified in this temporary implementation)")
     email: Optional[str] = Field(None, description="User's email address")
 
@@ -55,24 +56,50 @@ async def login(request: LoginRequest):
     - Implement rate limiting on login attempts
     - Add account lockout after failed attempts
     """
-    logger.info(f"[AUTH_LOGIN] User login request for: {request.user_id}")
+    logger.info(f"[AUTH_LOGIN] User login request for email: {request.user_id}")
     
-    # For now, just generate a token without verification
-    # In production, verify credentials here
-    
-    token = create_user_token(
-        user_id=request.user_id,
-        email=request.email
-    )
-    
-    logger.info(f"[AUTH_LOGIN] Token generated successfully for user: {request.user_id}")
-    
-    return TokenResponse(
-        access_token=token,
-        token_type="bearer",
-        user_id=request.user_id,
-        is_admin=False
-    )
+    # Look up user by email to get their user_id
+    try:
+        user = await db.users.find_one({"email": request.user_id})
+        
+        if not user:
+            logger.warning(f"[AUTH_LOGIN] User not found for email: {request.user_id}")
+            raise HTTPException(
+                status_code=401,
+                detail="User not found. Please submit an application first."
+            )
+        
+        user_id = user.get("user_id")
+        if not user_id:
+            logger.error(f"[AUTH_LOGIN] User found but missing user_id: {request.user_id}")
+            raise HTTPException(
+                status_code=500,
+                detail="Invalid user record"
+            )
+        
+        # Generate token with user_id
+        token = create_user_token(
+            user_id=user_id,
+            email=request.user_id
+        )
+        
+        logger.info(f"[AUTH_LOGIN] Token generated successfully for user: {user_id}")
+        
+        return TokenResponse(
+            access_token=token,
+            token_type="bearer",
+            user_id=user_id,
+            is_admin=False
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[AUTH_LOGIN] Error during login: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred during login"
+        )
 
 
 @router.post(

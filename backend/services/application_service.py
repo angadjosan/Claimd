@@ -123,24 +123,24 @@ async def get_document_data(document_ref: Dict[str, Any]) -> Optional[bytes]:
         logger.error(f"[GET_DOCUMENT_DATA] Failed to retrieve document {document_ref.get('document_id', 'unknown')}: {type(e).__name__}: {str(e)}", exc_info=True)
         return None
 
-async def read_applications_by_user_ssn(ssn: str) -> Dict[str, Any]:
+async def read_applications_by_user_id(user_id: str) -> Dict[str, Any]:
     """
-    Get all applications for a specific user by their SSN.
+    Get all applications for a specific user by their user ID.
     
     Args:
-        ssn: Social Security Number in format XXX-XX-XXXX
+        user_id: User's unique identifier (UUID)
     
     Returns:
         Dict containing user data and their applications
     """
-    logger.info("[READ_USER_APPLICATIONS] Fetching applications for user by SSN")
+    logger.info(f"[READ_USER_APPLICATIONS] Fetching applications for user ID: {user_id}")
     try:
-        # First find the user by SSN
-        user = await db.users.find_one({"socialSecurityNumber": ssn})
+        # First find the user by user_id
+        user = await db.users.find_one({"user_id": user_id})
         
         if not user:
-            logger.warning("[READ_USER_APPLICATIONS] User not found in database")
-            return {"success": False, "error": f"No user found with SSN {ssn}"}
+            logger.warning(f"[READ_USER_APPLICATIONS] User not found in database: {user_id}")
+            return {"success": False, "error": f"No user found with user_id {user_id}"}
         
         # Get all application IDs for this user
         application_ids = user.get("applications", [])

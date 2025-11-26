@@ -151,19 +151,7 @@ CLAUDE_API_KEY=your_claude_api_key_here
 
 #### Frontend Environment Variables
 
-Create a `.env.local` file in the `frontend` directory:
-
-```bash
-cd frontend
-echo "VITE_ADMIN_SSN=123-00-4572" > .env.local
-```
-
-Or manually create `frontend/.env.local` with:
-```
-VITE_ADMIN_SSN=123-00-4572
-```
-
-> **Note:** The admin SSN is for development only. Change this for production use.
+No environment variables are required for the frontend in development mode. The frontend will automatically connect to the backend API running on `http://localhost:8000`.
 
 ### Running the Application
 
