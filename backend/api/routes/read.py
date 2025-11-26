@@ -3,15 +3,15 @@ from bson import ObjectId
 from dotenv import load_dotenv
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
-from connectDB import db
+from backend.api.utils.connectDB import db
 import base64
 from bson import Binary
 import sys
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from logger import get_logger
-from db_retry import retry_on_db_error
+from backend.api.utils.logger import get_logger
+from backend.api.utils.db_retry import retry_on_db_error
 
 # Load environment
 dotenv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.env"))

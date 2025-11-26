@@ -2,12 +2,12 @@
 # main.py -- Main Program for Backend
 
 # Import Separate Files
-from api.ai.ai import ai
-from api.read.read import read, read_application_by_id, read_all_applications, read_applications_by_user_ssn, update_application_status, read_all_users, get_filtered_applications, approve_application, deny_application
-from api.logger import get_logger
-from api.exceptions import internal_error_exception, not_found_exception, validation_exception
-from api.db_init import create_indexes, verify_database_connection, get_database_stats
-from api.models import (
+from backend.api.routes.ai import ai
+from backend.api.routes.read import read, read_application_by_id, read_all_applications, read_applications_by_user_ssn, update_application_status, read_all_users, get_filtered_applications, approve_application, deny_application
+from backend.api.utils.logger import get_logger
+from backend.api.utils.exceptions import internal_error_exception, not_found_exception, validation_exception
+from backend.api.utils.db_init import create_indexes, verify_database_connection, get_database_stats
+from backend.api.utils.models import (
     BenefitApplicationRequest,
     ReadApplicationRequest,
     UpdateStatusRequest,

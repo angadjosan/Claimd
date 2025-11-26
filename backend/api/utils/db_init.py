@@ -7,7 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 import os
 import certifi
-from logger import get_logger
+from backend.api.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
