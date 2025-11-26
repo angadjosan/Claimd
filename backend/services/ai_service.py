@@ -109,77 +109,91 @@ async def ai(form_data: Dict[str, Any], medicalRecordsFile: Optional[UploadFile]
         logger.info(f"[AI_PROCESS] Claude API response received ({len(response_text)} characters)")
         
         # Extract JSON after streaming is complete
+        # Try to find content between START_OUTPUT and END_OUTPUT tags
         json_match = re.search(r'<START_OUTPUT>(.*?)<END_OUTPUT>', response_text, re.DOTALL)
 
         if json_match:
             json_str = json_match.group(1).strip()
-            
-            json_str = re.sub(r'^```json\s*', '', json_str)
-            json_str = re.sub(r'\s*```$', '', json_str)
-        
-            try:
-                jsonResult = json.loads(json_str)
-                logger.debug("[AI_PROCESS] JSON parsed successfully")
-
-                # Store documents in MongoDB
-                logger.info("[AI_PROCESS] Step 1/3: Storing documents in MongoDB")
-                
-                combinedDoc = await merge_pdfs(
-                    {
-                        "firstName": form_data["firstName"], 
-                        "lastName": form_data["lastName"], 
-                        "dateOfBirth": form_data["dateOfBirth"], 
-                        "socialSecurityNumber": form_data["socialSecurityNumber"], 
-                        "streetAddress": form_data["address"], 
-                        "city": form_data["city"], 
-                        "state": form_data["state"], 
-                        "zipCode": form_data["zipCode"]
-                    },
-                    [medical_bytes, income_bytes]
-                )
-                
-                document = await store_documents_in_db(
-                    combinedDoc, "combined_document.pdf"
-                )
-                
-                # Save application to MongoDB
-                logger.info("[AI_PROCESS] Step 2/3: Saving application to MongoDB")
-                application_id = await save_application_to_db(
-                    jsonResult, 
-                    document, 
-                    response_text
-                )
-                
-                # Save or update user
-                logger.info("[AI_PROCESS] Step 3/3: Saving/updating user record")
-                if application_id:
-                    await save_or_update_user(
-                        f"{form_data['firstName']} {form_data['lastName']}", 
-                        form_data["socialSecurityNumber"], 
-                        application_id
-                    )
-                
-                return {
-                    "success": True,
-                    "application_id": application_id,
-                    "result": jsonResult,
-                    "document": document,
-                    "raw_response": response_text
-                }
-                
-            except json.JSONDecodeError as e:
-                logger.error(f"[AI_PROCESS] JSON parsing failed: {type(e).__name__}: {str(e)}", exc_info=True)
-                return {
-                    "success": False,
-                    "error": f"Failed to parse JSON response: {str(e)}",
-                    "raw_response": response_text
-                }
         else:
-            logger.error("[AI_PROCESS] Response missing START_OUTPUT/END_OUTPUT tags")
+            # Fallback: Try to find JSON block without tags
+            logger.warning("[AI_PROCESS] START_OUTPUT/END_OUTPUT tags not found, attempting to extract JSON directly")
+            json_match = re.search(r'```json\s*(.*?)\s*```', response_text, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1).strip()
+            else:
+                # Last resort: try to find any JSON object
+                json_match = re.search(r'(\{[\s\S]*\})', response_text, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group(1).strip()
+                else:
+                    logger.error("[AI_PROCESS] Could not extract JSON from response")
+                    return {
+                        "success": False,
+                        "error": "No JSON found in response",
+                        "raw_response": response_text[:1000]  # Log first 1000 chars for debugging
+                    }
+        
+        # Clean up JSON string (remove markdown code fences if present)
+        json_str = re.sub(r'^```json\s*', '', json_str)
+        json_str = re.sub(r'\s*```$', '', json_str)
+        
+        try:
+            jsonResult = json.loads(json_str)
+            logger.debug("[AI_PROCESS] JSON parsed successfully")
+
+            # Store documents in MongoDB
+            logger.info("[AI_PROCESS] Step 1/3: Storing documents in MongoDB")
+            
+            combinedDoc = await merge_pdfs(
+                {
+                    "firstName": form_data["firstName"], 
+                    "lastName": form_data["lastName"], 
+                    "dateOfBirth": form_data["dateOfBirth"], 
+                    "socialSecurityNumber": form_data["socialSecurityNumber"], 
+                    "streetAddress": form_data["address"], 
+                    "city": form_data["city"], 
+                    "state": form_data["state"], 
+                    "zipCode": form_data["zipCode"]
+                },
+                [medical_bytes, income_bytes]
+            )
+            
+            document = await store_documents_in_db(
+                combinedDoc, "combined_document.pdf"
+            )
+            
+            # Save application to MongoDB
+            logger.info("[AI_PROCESS] Step 2/3: Saving application to MongoDB")
+            application_id = await save_application_to_db(
+                jsonResult, 
+                document, 
+                response_text
+            )
+            
+            # Save or update user
+            logger.info("[AI_PROCESS] Step 3/3: Saving/updating user record")
+            if application_id:
+                await save_or_update_user(
+                    f"{form_data['firstName']} {form_data['lastName']}", 
+                    form_data["socialSecurityNumber"], 
+                    application_id
+                )
+            
+            return {
+                "success": True,
+                "application_id": application_id,
+                "result": jsonResult,
+                "document": document,
+                "raw_response": response_text
+            }
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"[AI_PROCESS] JSON parsing failed: {type(e).__name__}: {str(e)}", exc_info=True)
+            logger.debug(f"[AI_PROCESS] Failed JSON string: {json_str[:500]}")
             return {
                 "success": False,
-                "error": "Output tags not found in response",
-                "raw_response": response_text
+                "error": f"Failed to parse JSON response: {str(e)}",
+                "raw_response": response_text[:1000]
             }
             
     except Exception as e:

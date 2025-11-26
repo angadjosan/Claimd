@@ -52,6 +52,13 @@ class BenefitApplicationRequest(BaseModel):
     zipCode: str = Field(..., pattern=r'^\d{5}(-\d{4})?$', description="5 or 9 digit ZIP code")
     socialSecurityNumber: str = Field(..., pattern=r'^\d{3}-\d{2}-\d{4}$', description="SSN in format XXX-XX-XXXX")
     
+    # Medical Information (optional)
+    doctorNames: Optional[str] = Field(None, max_length=500, description="Names of doctors")
+    doctorPhoneNumbers: Optional[str] = Field(None, max_length=500, description="Doctor phone numbers")
+    hospitalNames: Optional[str] = Field(None, max_length=500, description="Names of hospitals")
+    hospitalPhoneNumbers: Optional[str] = Field(None, max_length=500, description="Hospital phone numbers")
+    medicalRecordsPermission: Optional[bool] = Field(None, description="Permission to access medical records")
+    
     @field_validator('state')
     @classmethod
     def validate_state(cls, v: str) -> str:
@@ -86,7 +93,12 @@ class BenefitApplicationRequest(BaseModel):
                 "city": "Springfield",
                 "state": "IL",
                 "zipCode": "62701",
-                "socialSecurityNumber": "123-45-6789"
+                "socialSecurityNumber": "123-45-6789",
+                "doctorNames": "Dr. Smith",
+                "doctorPhoneNumbers": "555-1234",
+                "hospitalNames": "General Hospital",
+                "hospitalPhoneNumbers": "555-5678",
+                "medicalRecordsPermission": True
             }
         }
     )
