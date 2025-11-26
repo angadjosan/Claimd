@@ -2,7 +2,7 @@ import os
 from bson import ObjectId
 from dotenv import load_dotenv
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional, Union
 from connectDB import db
 import base64
 from bson import Binary
@@ -47,9 +47,15 @@ def bson_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
 # Read single application by ID
 # --------------------------------------------------------
 @retry_on_db_error(max_attempts=3, initial_delay=1.0)
-async def read_application_by_id(application_id: str):
+async def read_application_by_id(application_id: str) -> Dict[str, Any]:
     """
     Given an application_id, find and return the full application data
+    
+    Args:
+        application_id: Unique identifier for the application
+    
+    Returns:
+        Dict containing success status and application data or error message
     """
     logger.info(f"[READ_APPLICATION] Fetching application by ID: {application_id}")
     try:
@@ -84,9 +90,12 @@ async def read_application_by_id(application_id: str):
 # Main read function
 # --------------------------------------------------------
 @retry_on_db_error(max_attempts=3, initial_delay=1.0)
-async def read_all_applications():
+async def read_all_applications() -> Dict[str, Any]:
     """
     Get all applications from the database for admin dashboard
+    
+    Returns:
+        Dict containing success status and list of all applications
     """
     logger.info("[READ_ALL_APPLICATIONS] Starting fetch of all applications from database")
     try:
@@ -109,7 +118,16 @@ async def read_all_applications():
         logger.error(f"[READ_ALL_APPLICATIONS] Database query failed: {type(e).__name__}: {str(e)}", exc_info=True)
         return {"success": False, "error": "Failed to fetch applications"}
 
-async def get_document_data(document_ref: Dict[str, Any]):
+async def get_document_data(document_ref: Dict[str, Any]) -> Optional[bytes]:
+    """
+    Retrieve document data from database by document reference.
+    
+    Args:
+        document_ref: Dictionary containing document_id
+    
+    Returns:
+        Document binary data or None if not found
+    """
     try:
         if not document_ref or "document_id" not in document_ref:
             return None
@@ -125,9 +143,15 @@ async def get_document_data(document_ref: Dict[str, Any]):
         logger.error(f"[GET_DOCUMENT_DATA] Failed to retrieve document {document_ref.get('document_id', 'unknown')}: {type(e).__name__}: {str(e)}", exc_info=True)
         return None
 
-async def read_applications_by_user_ssn(ssn: str):
+async def read_applications_by_user_ssn(ssn: str) -> Dict[str, Any]:
     """
-    Get all applications for a specific user by their SSN
+    Get all applications for a specific user by their SSN.
+    
+    Args:
+        ssn: Social Security Number in format XXX-XX-XXXX
+    
+    Returns:
+        Dict containing user data and their applications
     """
     logger.info("[READ_USER_APPLICATIONS] Fetching applications for user by SSN")
     try:
@@ -180,9 +204,17 @@ async def read_applications_by_user_ssn(ssn: str):
 
 
 @retry_on_db_error(max_attempts=3, initial_delay=1.0)
-async def update_application_status(application_id: str, status: str, admin_notes: str = ""):
+async def update_application_status(application_id: str, status: str, admin_notes: str = "") -> Dict[str, Any]:
     """
-    Update the status of an application (approve/deny)
+    Update the status of an application (approve/deny).
+    
+    Args:
+        application_id: Unique application identifier
+        status: New status (APPROVED, DENIED, PENDING, UNDER_REVIEW)
+        admin_notes: Optional administrator notes
+    
+    Returns:
+        Dict containing success status and message
     """
     logger.info(f"[UPDATE_STATUS] Updating application {application_id} status to: {status}")
     try:
@@ -217,7 +249,13 @@ async def update_application_status(application_id: str, status: str, admin_note
 
 
 @retry_on_db_error(max_attempts=3, initial_delay=1.0)
-async def get_pending_users():
+async def get_pending_users() -> Dict[str, Any]:
+    """
+    Get users with pending applications (human_final=False).
+    
+    Returns:
+        Dict containing list of pending users and their applications
+    """
     try:
         logger.info("Fetching pending users")
         
@@ -350,9 +388,15 @@ async def read():
 
 
 @retry_on_db_error(max_attempts=3, initial_delay=1.0)
-async def approve_application(application_id: str):
+async def approve_application(application_id: str) -> Dict[str, Any]:
     """
-    Mark an application as approved (human_final=True, final_decision="APPROVE")
+    Mark an application as approved (human_final=True, final_decision="APPROVE").
+    
+    Args:
+        application_id: Unique application identifier
+    
+    Returns:
+        Dict containing success status and approval details
     """
     logger.info(f"[APPROVE] Processing approval for application: {application_id}")
     try:
@@ -388,9 +432,15 @@ async def approve_application(application_id: str):
 # Deny an application
 # --------------------------------------------------------
 @retry_on_db_error(max_attempts=3, initial_delay=1.0)
-async def deny_application(application_id: str):
+async def deny_application(application_id: str) -> Dict[str, Any]:
     """
-    Mark an application as denied (human_final=True, final_decision="REJECT")
+    Mark an application as denied (human_final=True, final_decision="REJECT").
+    
+    Args:
+        application_id: Unique application identifier
+    
+    Returns:
+        Dict containing success status and denial details
     """
     logger.info(f"[DENY] Processing denial for application: {application_id}")
     try:

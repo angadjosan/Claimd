@@ -7,16 +7,35 @@ from api.read.read import read, read_application_by_id, read_all_applications, r
 from api.logger import get_logger
 from api.exceptions import internal_error_exception, not_found_exception, validation_exception
 from api.db_init import create_indexes, verify_database_connection, get_database_stats
+from api.models import (
+    BenefitApplicationRequest,
+    ReadApplicationRequest,
+    UpdateStatusRequest,
+    ApplicationDecisionRequest,
+    ErrorResponse,
+    SuccessResponse,
+    HealthResponse,
+    ReadinessResponse,
+    AIAnalysisResponse,
+    ApplicationResponse,
+    ApplicationListResponse,
+    DecisionResponse,
+    ReadResponse,
+    BenefitApplicationResponse,
+    validate_file_upload,
+    FileUploadConfig
+)
 
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import Modules
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
+from fastapi.responses import JSONResponse
 import uvicorn
-from pydantic import BaseModel
 from typing import Any, Dict
 import os
 from dotenv import load_dotenv
+from pydantic import ValidationError
 
 # Load environment variables
 load_dotenv()
@@ -24,22 +43,14 @@ load_dotenv()
 # Initialize logger
 logger = get_logger(__name__)
 
-# RESPONSE/REQUEST SCHEMAS
-class ReadRequest(BaseModel):
-    ssn: str  # specifically expect an SSN string
-
-class ReadResponse(BaseModel):
-    data: Dict[str, Any]
-
-class WriteResponse(BaseModel):
-    decision: str
-    confidence: float
-    confidence_label: str
-    summary: str
-    recommendation: str
-    ssdi_amount: float
-
-app = FastAPI()
+app = FastAPI(
+    title="SSDI Application Processing API",
+    description="API for processing Social Security Disability Insurance (SSDI) applications with AI-powered analysis",
+    version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json"
+)
 
 # Get allowed origins from environment variable
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
@@ -91,13 +102,29 @@ async def startup_event():
 
 
 # HEALTH CHECK ENDPOINTS
-@app.get("/health")
+@app.get(
+    "/health",
+    response_model=HealthResponse,
+    tags=["Health"],
+    summary="Basic health check",
+    description="Check if the service is running"
+)
 async def health_check():
     """Basic health check endpoint."""
     return {"status": "healthy", "service": "ssdi-backend"}
 
 
-@app.get("/health/ready")
+@app.get(
+    "/health/ready",
+    response_model=ReadinessResponse,
+    tags=["Health"],
+    summary="Readiness check",
+    description="Check if the service is ready to accept requests, including database connectivity",
+    responses={
+        200: {"description": "Service is ready"},
+        503: {"description": "Service is not ready", "model": ErrorResponse}
+    }
+)
 async def readiness_check():
     """Readiness check with database connectivity verification."""
     try:
@@ -127,24 +154,77 @@ async def readiness_check():
 # REQUEST: MultiStepForm data with file uploads
 # RESPONSE: Processing results with MongoDB document IDs
 # FUNCTIONALITY: Process form data and upload to MongoDB with ordered fields
-@app.post("/api/benefit-application")
+@app.post(
+    "/api/benefit-application",
+    response_model=BenefitApplicationResponse,
+    tags=["Applications"],
+    summary="Submit SSDI benefit application",
+    description="Process a new SSDI benefit application with personal information and supporting documents. Files are validated and analyzed by AI to generate a recommendation.",
+    responses={
+        200: {"description": "Application processed successfully"},
+        400: {"description": "Invalid input or file validation failed", "model": ErrorResponse},
+        500: {"description": "Internal server error during processing", "model": ErrorResponse}
+    }
+)
 async def handle_benefit_application(
-    firstName: str = Form(...),
-    lastName: str = Form(...),
-    dateOfBirth: str = Form(...),
-    address: str = Form(...),
-    city: str = Form(...),
-    state: str = Form(...),
-    zipCode: str = Form(...),
-    socialSecurityNumber: str = Form(...),
-    medicalRecordsFile: UploadFile = File(None),
-    incomeDocumentsFile: UploadFile = File(None)
+    firstName: str = Form(..., description="Applicant's first name"),
+    lastName: str = Form(..., description="Applicant's last name"),
+    dateOfBirth: str = Form(..., description="Date of birth in YYYY-MM-DD format"),
+    address: str = Form(..., description="Street address"),
+    city: str = Form(..., description="City"),
+    state: str = Form(..., description="Two-letter state code"),
+    zipCode: str = Form(..., description="5 or 9 digit ZIP code"),
+    socialSecurityNumber: str = Form(..., description="SSN in format XXX-XX-XXXX"),
+    medicalRecordsFile: UploadFile = File(None, description="Medical records PDF or image"),
+    incomeDocumentsFile: UploadFile = File(None, description="Income/financial documents PDF or image")
 ):
     try:
         logger.info(f"[BENEFIT_APPLICATION] Processing new application for {firstName} {lastName}, DOB: {dateOfBirth}")
         logger.debug(f"[BENEFIT_APPLICATION] Files received - Medical: {medicalRecordsFile.filename if medicalRecordsFile else 'None'}, Income: {incomeDocumentsFile.filename if incomeDocumentsFile else 'None'}")
         
-        form_data = {
+        # Validate form data using Pydantic model
+        try:
+            form_data_model = BenefitApplicationRequest(
+                firstName=firstName,
+                lastName=lastName,
+                dateOfBirth=dateOfBirth,
+                address=address,
+                city=city,
+                state=state,
+                zipCode=zipCode,
+                socialSecurityNumber=socialSecurityNumber
+            )
+            form_data = form_data_model.model_dump()
+        except ValidationError as ve:
+            logger.warning(f"[BENEFIT_APPLICATION] Form validation failed: {ve}")
+            raise validation_exception(f"Invalid form data: {str(ve)}")
+        
+        # Validate uploaded files
+        if medicalRecordsFile and medicalRecordsFile.filename:
+            file_content = await medicalRecordsFile.read()
+            await medicalRecordsFile.seek(0)  # Reset file pointer
+            is_valid, error_msg = validate_file_upload(
+                medicalRecordsFile.filename,
+                medicalRecordsFile.content_type or '',
+                len(file_content)
+            )
+            if not is_valid:
+                logger.warning(f"[BENEFIT_APPLICATION] Medical records file validation failed: {error_msg}")
+                raise validation_exception(f"Medical records file error: {error_msg}")
+        
+        if incomeDocumentsFile and incomeDocumentsFile.filename:
+            file_content = await incomeDocumentsFile.read()
+            await incomeDocumentsFile.seek(0)  # Reset file pointer
+            is_valid, error_msg = validate_file_upload(
+                incomeDocumentsFile.filename,
+                incomeDocumentsFile.content_type or '',
+                len(file_content)
+            )
+            if not is_valid:
+                logger.warning(f"[BENEFIT_APPLICATION] Income documents file validation failed: {error_msg}")
+                raise validation_exception(f"Income documents file error: {error_msg}")
+        
+        form_data_dict = {
             "firstName": firstName,
             "lastName": lastName,
             "dateOfBirth": dateOfBirth,
@@ -158,7 +238,7 @@ async def handle_benefit_application(
         # Call AI function
         logger.info(f"[BENEFIT_APPLICATION] Sending to AI processing pipeline")
         result = await ai(
-            form_data,
+            form_data_dict,
             medicalRecordsFile,
             incomeDocumentsFile
         )
@@ -195,7 +275,17 @@ async def handle_benefit_application(
 # REQUEST: SSN to look up
 # RESPONSE: Data from database
 # FUNCTIONALITY: Read existing application data
-@app.post("/api/read", response_model=ReadResponse)
+@app.post(
+    "/api/read",
+    response_model=ReadResponse,
+    tags=["Applications"],
+    summary="Read application data",
+    description="Retrieve existing application data from the database.",
+    responses={
+        200: {"description": "Application data retrieved successfully"},
+        500: {"description": "Internal server error", "model": ErrorResponse}
+    }
+)
 async def mainRead():
     result = await read()
     
@@ -204,7 +294,17 @@ async def mainRead():
 # REQUEST: Get all applications for admin dashboard
 # RESPONSE: All applications from database
 # FUNCTIONALITY: Read all applications for admin dashboard
-@app.get("/api/applications")
+@app.get(
+    "/api/applications",
+    response_model=ReadResponse,
+    tags=["Admin"],
+    summary="Get all applications",
+    description="Retrieve all SSDI applications from the database. Admin only endpoint.",
+    responses={
+        200: {"description": "Applications retrieved successfully"},
+        500: {"description": "Internal server error", "model": ErrorResponse}
+    }
+)
 async def getAllApplications():
     logger.info("[GET_APPLICATIONS] Admin fetching all applications")
     result = await read_all_applications()
@@ -213,19 +313,48 @@ async def getAllApplications():
 # REQUEST: Get all users for debugging
 # RESPONSE: All users from database
 # FUNCTIONALITY: Debug endpoint to see all users
-@app.get("/api/users/all")
+@app.get(
+    "/api/users/all",
+    tags=["Admin", "Debug"],
+    summary="Get all users",
+    description="Retrieve all users from the database. Debug/admin endpoint.",
+    responses={
+        200: {"description": "Users retrieved successfully"},
+        500: {"description": "Internal server error", "model": ErrorResponse}
+    }
+)
 async def getAllUsers():
     logger.info("[GET_USERS] Admin fetching all users")
     result = await read_all_users()
     return result
 
-@app.get("/api/users/filtered")
+@app.get(
+    "/api/users/filtered",
+    tags=["Admin"],
+    summary="Get filtered applications",
+    description="Retrieve applications that require human review (human_final=False).",
+    responses={
+        200: {"description": "Filtered applications retrieved successfully"},
+        500: {"description": "Internal server error", "model": ErrorResponse}
+    }
+)
 async def getFilteredApplications():
     logger.info("[GET_FILTERED] Admin fetching filtered applications (human_final=False)")
     result = await get_filtered_applications()
     return result
 
-@app.put("/api/application/approve/{application_id}")
+@app.put(
+    "/api/application/approve/{application_id}",
+    response_model=ReadResponse,
+    tags=["Admin", "Decisions"],
+    summary="Approve application",
+    description="Approve a SSDI application and update its status to APPROVED.",
+    responses={
+        200: {"description": "Application approved successfully"},
+        404: {"description": "Application not found", "model": ErrorResponse},
+        500: {"description": "Internal server error", "model": ErrorResponse}
+    }
+)
 async def approveApplication(application_id: str):
     logger.info(f"[APPROVE_ENDPOINT] Admin approving application: {application_id}")
     result = await approve_application(application_id)
@@ -238,7 +367,18 @@ async def approveApplication(application_id: str):
     logger.info(f"[APPROVE_ENDPOINT] Successfully approved application: {application_id}")
     return ReadResponse(data=result)
 
-@app.put("/api/application/deny/{application_id}")
+@app.put(
+    "/api/application/deny/{application_id}",
+    response_model=ReadResponse,
+    tags=["Admin", "Decisions"],
+    summary="Deny application",
+    description="Deny a SSDI application and update its status to DENIED.",
+    responses={
+        200: {"description": "Application denied successfully"},
+        404: {"description": "Application not found", "model": ErrorResponse},
+        500: {"description": "Internal server error", "model": ErrorResponse}
+    }
+)
 async def denyApplication(application_id: str):
     logger.info(f"[DENY_ENDPOINT] Admin denying application: {application_id}")
     result = await deny_application(application_id)
@@ -256,7 +396,18 @@ async def denyApplication(application_id: str):
 # REQUEST: SSN to look up user applications
 # RESPONSE: All applications for a specific user
 # FUNCTIONALITY: Read applications by user SSN
-@app.get("/api/user/applications/{ssn}")
+@app.get(
+    "/api/user/applications/{ssn}",
+    response_model=ReadResponse,
+    tags=["Applications", "Users"],
+    summary="Get user applications by SSN",
+    description="Retrieve all applications submitted by a specific user identified by their Social Security Number.",
+    responses={
+        200: {"description": "User applications retrieved successfully"},
+        404: {"description": "User not found", "model": ErrorResponse},
+        500: {"description": "Internal server error", "model": ErrorResponse}
+    }
+)
 async def getUserApplications(ssn: str):
     logger.info("[USER_APPLICATIONS] Fetching applications for user by SSN")
     result = await read_applications_by_user_ssn(ssn)
@@ -273,7 +424,18 @@ async def getUserApplications(ssn: str):
 # REQUEST: Application ID to look up
 # RESPONSE: Application data from database
 # FUNCTIONALITY: Read a single application by ID
-@app.get("/api/application/{application_id}")
+@app.get(
+    "/api/application/{application_id}",
+    response_model=ReadResponse,
+    tags=["Applications"],
+    summary="Get application by ID",
+    description="Retrieve a single SSDI application by its unique identifier.",
+    responses={
+        200: {"description": "Application retrieved successfully"},
+        404: {"description": "Application not found", "model": ErrorResponse},
+        500: {"description": "Internal server error", "model": ErrorResponse}
+    }
+)
 async def getApplicationById(application_id: str):
     logger.info(f"[GET_APPLICATION] Fetching application by ID: {application_id}")
     result = await read_application_by_id(application_id)
@@ -289,8 +451,24 @@ async def getApplicationById(application_id: str):
 # REQUEST: Application ID and status to update
 # RESPONSE: Success/failure message
 # FUNCTIONALITY: Update application status (approve/deny)
-@app.put("/api/application/{application_id}/status")
-async def updateApplicationStatus(application_id: str, status: str = Form(...), admin_notes: str = Form("")):
+@app.put(
+    "/api/application/{application_id}/status",
+    response_model=ReadResponse,
+    tags=["Admin", "Applications"],
+    summary="Update application status",
+    description="Update the status of a SSDI application with optional admin notes.",
+    responses={
+        200: {"description": "Application status updated successfully"},
+        400: {"description": "Invalid status or validation error", "model": ErrorResponse},
+        404: {"description": "Application not found", "model": ErrorResponse},
+        500: {"description": "Internal server error", "model": ErrorResponse}
+    }
+)
+async def updateApplicationStatus(
+    application_id: str,
+    status: str = Form(..., description="New status (PENDING, UNDER_REVIEW, APPROVED, DENIED)"),
+    admin_notes: str = Form("", description="Optional admin notes about the status change")
+):
     logger.info(f"[UPDATE_STATUS_ENDPOINT] Admin updating application {application_id} to status: {status}")
     if admin_notes:
         logger.debug(f"[UPDATE_STATUS_ENDPOINT] Admin notes provided: {admin_notes[:100]}...")  # Truncate long notes

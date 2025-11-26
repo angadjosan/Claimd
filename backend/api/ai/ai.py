@@ -15,6 +15,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 from PyPDF2 import PdfMerger
+from typing import Dict, List, Any, Optional, Tuple
+from fastapi import UploadFile
 
 
 # Add parent directory to path to import connectDB
@@ -43,7 +45,17 @@ client = anthropic.Anthropic(api_key=os.getenv("CLAUDE_API_KEY"))
 # state
 # zipCode
 
-async def merge_pdfs(form_data: dict, document_list: list):
+async def merge_pdfs(form_data: Dict[str, Any], document_list: List[bytes]) -> Tuple[bytes, str]:
+    """
+    Merge form data and uploaded PDFs into a single document.
+    
+    Args:
+        form_data: Dictionary containing applicant information
+        document_list: List of document bytes to merge
+    
+    Returns:
+        Tuple of (merged_pdf_bytes, document_name)
+    """
     try:
         logger.info(f"[MERGE_PDF] Starting PDF merge for {len(document_list)} documents")
         buffer = BytesIO()
@@ -214,9 +226,17 @@ async def store_documents_in_db(combinedDocument, combinedDocumentName):
 # Save application to MongoDB
 # --------------------------------------------------------
 @retry_on_db_error(max_attempts=3, initial_delay=1.0)
-async def save_application_to_db(json_result, document, raw_response):
+async def save_application_to_db(json_result: Dict[str, Any], document: Dict[str, str], raw_response: str) -> Optional[str]:
     """
-    Save the SSDI application analysis to MongoDB with required fields
+    Save the SSDI application analysis to MongoDB with required fields.
+    
+    Args:
+        json_result: Parsed AI analysis results
+        document: Document reference from database
+        raw_response: Raw Claude API response
+    
+    Returns:
+        Application ID if successful, None otherwise
     """
     try:
         # Generate unique application ID
@@ -326,7 +346,18 @@ async def save_or_update_user(name: str, socialSecurityNumber: str, application_
 # --------------------------------------------------------
 # MAIN AI FUNCTION
 # --------------------------------------------------------
-async def ai(form_data, medicalRecordsFile, incomeDocumentsFile):
+async def ai(form_data: Dict[str, Any], medicalRecordsFile: Optional[UploadFile], incomeDocumentsFile: Optional[UploadFile]) -> Dict[str, Any]:
+    """
+    Main AI processing pipeline for SSDI application analysis.
+    
+    Args:
+        form_data: Applicant form data
+        medicalRecordsFile: Uploaded medical records (optional)
+        incomeDocumentsFile: Uploaded income documents (optional)
+    
+    Returns:
+        Dict containing AI analysis results and application ID
+    """
     try:
         # Read file contents
         medical_bytes = await medicalRecordsFile.read()
