@@ -173,11 +173,29 @@ async def ai(form_data: Dict[str, Any], medicalRecordsFile: Optional[UploadFile]
             # Save or update user
             logger.info("[AI_PROCESS] Step 3/3: Saving/updating user record")
             if application_id:
-                await save_or_update_user(
-                    f"{form_data['firstName']} {form_data['lastName']}", 
+                user_result = await save_or_update_user(
+                    f"{form_data['firstName']} {form_data['lastName']}",
+                    form_data.get("email", ""),
                     form_data["socialSecurityNumber"], 
                     application_id
                 )
+                
+                # Check if user update failed
+                if not user_result.get("success"):
+                    error_code = user_result.get("error_code")
+                    if error_code == "USER_NOT_FOUND":
+                        logger.error(f"[AI_PROCESS] User not found: {form_data.get('email')}")
+                        return {
+                            "success": False,
+                            "error": "Account not found. Please create an account before submitting an application.",
+                            "error_code": "USER_NOT_FOUND"
+                        }
+                    else:
+                        logger.error(f"[AI_PROCESS] Failed to update user: {user_result.get('error')}")
+                        return {
+                            "success": False,
+                            "error": f"Failed to save user information: {user_result.get('error')}"
+                        }
             
             return {
                 "success": True,

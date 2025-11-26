@@ -1,13 +1,8 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle, XCircle, AlertCircle, Plus, LogOut } from "lucide-react";
-import Cookies from "js-cookie";
+import { authService } from '../services/auth';
 import { config } from '../config/env';
-
-interface UserData {
-  name: string;
-  ssn: string;
-}
 
 interface Application {
   application_id: string;
@@ -29,17 +24,14 @@ interface Application {
 
 interface DatabaseUser {
   name: string;
-  ssn: string;
+  user_id: string;
   applications: Application[];
 }
 
 export default function UserDash() {
-  const [userData, setUserData] = useState<UserData | null>(null);
   const [databaseUser, setDatabaseUser] = useState<DatabaseUser | null>(null);
-  const [formData, setFormData] = useState({ username: "", password: "" });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [loginError, setLoginError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const getConfidenceColor = (confidence: number) => {
@@ -114,55 +106,16 @@ export default function UserDash() {
     }
   };
 
-  const getUserInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((word) => word.charAt(0))
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const getLastFourSSN = (ssn: string) => {
-    return ssn.slice(-4);
-  };
-
-  const fetchUserApplications = async (userName: string) => {
+  const fetchUserApplications = async (userId: string) => {
     try {
-      // Step 1: Fetch all users from the database
-      const usersResponse = await fetch(`${config.apiUrl}/api/users/all`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!usersResponse.ok) {
-        throw new Error("Failed to fetch users");
-      }
-
-      const usersResult = await usersResponse.json();
-
-      if (!usersResult.success || !usersResult.users) {
-        throw new Error("Invalid users API response");
-      }
-
-      // Step 2: Filter users by name (should be only one match since names are hardcoded)
-      const matchingUser = usersResult.users.find(
-        (user: any) => user.name.toLowerCase() === userName.toLowerCase()
-      );
-
-      if (!matchingUser) {
-        return null;
-      }
-
-      // Step 3: Fetch applications for this user using their SSN
+      // Fetch applications for this user using their user_id
       const appResponse = await fetch(
-        `${config.apiUrl}/api/user/applications/${matchingUser.ssn}`,
+        `${config.apiUrl}/api/user/applications/${userId}`,
         {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
+            ...authService.getAuthHeader(),
           },
         }
       );
@@ -206,8 +159,8 @@ export default function UserDash() {
           );
 
           return {
-            name: matchingUser.name, // Use name from the users list
-            ssn: matchingUser.ssn,
+            name: appResult.data.user.name,
+            user_id: appResult.data.user.user_id,
             applications: mappedApplications,
           };
         } else {
@@ -221,99 +174,41 @@ export default function UserDash() {
     }
   };
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError(null);
-    
-    if (formData.username.trim() && formData.password.trim()) {
-      // Check for admin login
-      if (
-        formData.username.toLowerCase() === "admin" &&
-        formData.password === "admin"
-      ) {
-        const userData = {
-          name: "Admin",
-          ssn: "admin",
-        };
-        Cookies.set(
-          "userData",
-          JSON.stringify({ ...userData, role: "admin" }),
-          { expires: 7 }
-        );
-        navigate("/admin");
-        return;
-      }
-
-      // Regular user login - accept any credentials without validation
-      const userData = {
-        name: formData.username.trim(),
-        ssn: formData.password.trim(), // Using password as SSN for user matching
-      };
-
-      try {
-        Cookies.set("userData", JSON.stringify(userData), { expires: 7 });
-        setUserData(userData);
-
-        // Optionally fetch user applications from backend by name (but don't require it)
-        try {
-          const userApplications = await fetchUserApplications(userData.name);
-          if (userApplications) {
-            setDatabaseUser(userApplications);
-          }
-        } catch (error) {
-          // Silently ignore errors - user can still proceed without existing applications
-          console.log("No existing applications found for user");
-        }
-        
-        setFormData({ username: "", password: "" });
-      } catch (error) {
-        setLoginError("An error occurred while signing in. Please try again.");
-      }
-    }
-  };
-
   const handleSignOut = () => {
-    Cookies.remove("userData");
-    setUserData(null);
+    authService.logout();
     setDatabaseUser(null);
-    navigate("/");
+    navigate("/login");
   };
 
   useEffect(() => {
     const initializeData = async () => {
-      // Check for saved user data
-      const savedUserData = Cookies.get("userData");
+      // Verify user is authenticated (should be guaranteed by ProtectedRoute, but double-check)
+      const userInfo = await authService.verifyToken();
 
-      if (savedUserData) {
-        try {
-          const parsed = JSON.parse(savedUserData);
-
-          // Check if this is an admin user
-          if (parsed.role === "admin") {
-            navigate("/admin");
-            return;
-          }
-
-          setUserData(parsed);
-
-          // Fetch user applications from backend by name
-          const userApplications = await fetchUserApplications(parsed.name);
-          
-          if (!userApplications) {
-            setError("Failed to load your applications. Please try again.");
-          } else {
-            setDatabaseUser(userApplications);
-          }
-        } catch (error) {
-          setError("An error occurred while loading your data.");
-          Cookies.remove("userData");
-        }
+      if (!userInfo) {
+        // Not authenticated, redirect to login
+        navigate("/login");
+        return;
       }
+
+      // Fetch user applications from backend
+      try {
+        const userApplications = await fetchUserApplications(userInfo.user_id);
+        
+        if (!userApplications) {
+          setError("Failed to load your applications. Please try again.");
+        } else {
+          setDatabaseUser(userApplications);
+        }
+      } catch (error) {
+        setError("An error occurred while loading your data.");
+      }
+      
       setIsLoading(false);
     };
 
     initializeData();
-  }, []);
+  }, [navigate]);
 
   if (isLoading) {
     return (
@@ -321,88 +216,6 @@ export default function UserDash() {
         <div className="flex items-center space-x-3">
           <div className="w-6 h-6 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
           <span className="text-lg text-gray-600 font-light">Loading...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!userData) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-6 py-20">
-        <div className="max-w-md w-full">
-          {/* Header */}
-          <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-thin text-gray-900 mb-2">
-              Sign In
-            </h1>
-            <p className="text-gray-600 font-light">
-              Access your disability benefits dashboard
-            </p>
-          </div>
-
-          {/* Form */}
-          <div className="bg-white border border-gray-300 p-8">
-            {loginError && (
-              <div className="mb-6 border border-red-300 bg-red-50 p-4 flex items-start space-x-3">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-800 font-light">{loginError}</p>
-              </div>
-            )}
-            <form onSubmit={handleSignIn} className="space-y-6">
-              <div>
-                <label
-                  htmlFor="username"
-                  className="block text-sm font-light text-gray-600 mb-2 uppercase tracking-wider text-xs"
-                >
-                  Username
-                </label>
-                <input
-                  type="text"
-                  id="username"
-                  value={formData.username}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      username: e.target.value,
-                    }))
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 focus:border-gray-900 transition-colors duration-200 font-light"
-                  placeholder="Enter your username"
-                  required
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-light text-gray-600 mb-2 uppercase tracking-wider text-xs"
-                >
-                  Password
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      password: e.target.value,
-                    }))
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 focus:border-gray-900 transition-colors duration-200 font-light"
-                  placeholder="Enter your password"
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-gray-900 text-white py-3 hover:bg-gray-800 transition-all duration-200 font-light"
-              >
-                Sign In
-              </button>
-            </form>
-          </div>
         </div>
       </div>
     );
@@ -562,7 +375,7 @@ export default function UserDash() {
               </p>
               <p className="text-gray-500 font-light text-sm mt-2">
                 Please check back later for updates, or submit a new one if you
-                haven’t yet.
+                haven't yet.
               </p>
             </div>
           </div>
