@@ -36,8 +36,11 @@ node_modules/
 *.bak3
 *.backup
 
-# Local storage
-backend/local_storage/
+# Local storage - ignore files but keep directory structure
+backend/local_storage/metadata/*.json
+backend/local_storage/pdfs/**/*.pdf
+!backend/local_storage/.gitkeep
+!backend/local_storage/README.md
 
 # Logs
 *.log

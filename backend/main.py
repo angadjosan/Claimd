@@ -29,7 +29,7 @@ from api.models import (
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import Modules
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status, Request
 from fastapi.responses import JSONResponse
 import uvicorn
 from typing import Any, Dict
@@ -51,6 +51,22 @@ app = FastAPI(
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json"
 )
+
+# File upload size limit (25MB total request size to allow for 2 x 10MB files + form data)
+MAX_REQUEST_SIZE = 25 * 1024 * 1024  # 25 MB
+
+@app.middleware("http")
+async def limit_upload_size(request: Request, call_next):
+    """Middleware to limit request body size and prevent DoS attacks."""
+    if request.method == "POST":
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > MAX_REQUEST_SIZE:
+            logger.warning(f"[SECURITY] Request rejected: size {content_length} exceeds limit {MAX_REQUEST_SIZE}")
+            return JSONResponse(
+                status_code=413,
+                content={"detail": f"Request body too large. Maximum size is {MAX_REQUEST_SIZE / (1024*1024):.1f}MB"}
+            )
+    return await call_next(request)
 
 # Get allowed origins from environment variable
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
@@ -199,30 +215,48 @@ async def handle_benefit_application(
             logger.warning(f"[BENEFIT_APPLICATION] Form validation failed: {ve}")
             raise validation_exception(f"Invalid form data: {str(ve)}")
         
-        # Validate uploaded files
+        # Validate uploaded files with streaming to prevent memory issues
         if medicalRecordsFile and medicalRecordsFile.filename:
-            file_content = await medicalRecordsFile.read()
-            await medicalRecordsFile.seek(0)  # Reset file pointer
+            # Validate file metadata first
             is_valid, error_msg = validate_file_upload(
                 medicalRecordsFile.filename,
                 medicalRecordsFile.content_type or '',
-                len(file_content)
+                0  # Size will be validated during streaming
             )
             if not is_valid:
                 logger.warning(f"[BENEFIT_APPLICATION] Medical records file validation failed: {error_msg}")
                 raise validation_exception(f"Medical records file error: {error_msg}")
+            
+            # Validate file size by reading in chunks
+            total_size = 0
+            chunk_size = 1024 * 1024  # 1MB chunks
+            while chunk := await medicalRecordsFile.read(chunk_size):
+                total_size += len(chunk)
+                if total_size > FileUploadConfig.MAX_FILE_SIZE:
+                    logger.warning(f"[BENEFIT_APPLICATION] Medical records file exceeds size limit: {total_size} bytes")
+                    raise validation_exception(f"Medical records file exceeds maximum size of {FileUploadConfig.MAX_FILE_SIZE / (1024*1024)}MB")
+            await medicalRecordsFile.seek(0)  # Reset file pointer
         
         if incomeDocumentsFile and incomeDocumentsFile.filename:
-            file_content = await incomeDocumentsFile.read()
-            await incomeDocumentsFile.seek(0)  # Reset file pointer
+            # Validate file metadata first
             is_valid, error_msg = validate_file_upload(
                 incomeDocumentsFile.filename,
                 incomeDocumentsFile.content_type or '',
-                len(file_content)
+                0  # Size will be validated during streaming
             )
             if not is_valid:
                 logger.warning(f"[BENEFIT_APPLICATION] Income documents file validation failed: {error_msg}")
                 raise validation_exception(f"Income documents file error: {error_msg}")
+            
+            # Validate file size by reading in chunks
+            total_size = 0
+            chunk_size = 1024 * 1024  # 1MB chunks
+            while chunk := await incomeDocumentsFile.read(chunk_size):
+                total_size += len(chunk)
+                if total_size > FileUploadConfig.MAX_FILE_SIZE:
+                    logger.warning(f"[BENEFIT_APPLICATION] Income documents file exceeds size limit: {total_size} bytes")
+                    raise validation_exception(f"Income documents file exceeds maximum size of {FileUploadConfig.MAX_FILE_SIZE / (1024*1024)}MB")
+            await incomeDocumentsFile.seek(0)  # Reset file pointer
         
         form_data_dict = {
             "firstName": firstName,

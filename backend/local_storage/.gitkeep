@@ -1,0 +1,2 @@
+# This file ensures the local_storage directory structure exists in git
+# The actual files in this directory are gitignored for security and size reasons

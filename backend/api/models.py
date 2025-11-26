@@ -322,13 +322,13 @@ def validate_file_upload(filename: str, content_type: str, file_size: int) -> tu
     Args:
         filename: Name of the uploaded file
         content_type: MIME type of the file
-        file_size: Size of file in bytes
+        file_size: Size of file in bytes (use 0 if size validation will be done during streaming)
     
     Returns:
         Tuple of (is_valid, error_message)
     """
-    # Check file size
-    if file_size > FileUploadConfig.MAX_FILE_SIZE:
+    # Check file size (skip if 0, as it will be validated during streaming)
+    if file_size > 0 and file_size > FileUploadConfig.MAX_FILE_SIZE:
         return False, f"File size exceeds maximum allowed size of {FileUploadConfig.MAX_FILE_SIZE / (1024*1024)}MB"
     
     # Check content type
