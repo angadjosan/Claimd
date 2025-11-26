@@ -69,6 +69,8 @@ def setup_logging():
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("anthropic").setLevel(logging.INFO)
     logging.getLogger("motor").setLevel(logging.WARNING)
+    logging.getLogger("pymongo").setLevel(logging.WARNING)
+    logging.getLogger("pymongo.ocsp_support").setLevel(logging.WARNING)
     
     # Log startup message
     logger = logging.getLogger(__name__)
