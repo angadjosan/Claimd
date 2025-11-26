@@ -49,27 +49,32 @@ async def read_application_by_id(application_id: str):
     """
     Given an application_id, find and return the full application data
     """
-    logger.info(f"Fetching application: {application_id}")
+    logger.info(f"[READ_APPLICATION] Fetching application by ID: {application_id}")
     try:
         app = await db.applications.find_one({"application_id": application_id})
         if not app:
+            logger.warning(f"[READ_APPLICATION] Application not found in database: {application_id}")
             return {"success": False, "error": f"No application found with application_id {application_id}"}
         
         docs = app["documents"]
         doc_id = docs["document_id"]
-        logger.debug(f"Document ID: {doc_id}")
+        logger.debug(f"[READ_APPLICATION] Retrieving document from GridFS: {doc_id}")
                 
         doc = await db.documents.find_one({"_id": ObjectId(doc_id)})
         
         if not doc:
+            logger.warning(f"[READ_APPLICATION] Document not found in GridFS: {doc_id} for application: {application_id}")
             return {"success": False, "application": bson_to_json(app)} 
         
         app["document"] = base64.b64encode(doc["data"]).decode("utf-8")
-
+        logger.info(f"[READ_APPLICATION] Successfully retrieved application: {application_id} with document")
         return {"success": True, "application": bson_to_json(app)}
 
+    except KeyError as e:
+        logger.error(f"[READ_APPLICATION] Missing required field in application document: {e} for application: {application_id}", exc_info=True)
+        return {"success": False, "error": "Failed to fetch application"}
     except Exception as e:
-        logger.error(f"Error in read_application_by_id(): {e}", exc_info=True)
+        logger.error(f"[READ_APPLICATION] Unexpected error fetching application {application_id}: {type(e).__name__}: {str(e)}", exc_info=True)
         return {"success": False, "error": "Failed to fetch application"}
 
 
@@ -80,7 +85,7 @@ async def read_all_applications():
     """
     Get all applications from the database for admin dashboard
     """
-    logger.info("Fetching all applications")
+    logger.info("[READ_ALL_APPLICATIONS] Starting fetch of all applications from database")
     try:
         # Find all applications
         cursor = db.applications.find({})
@@ -94,11 +99,11 @@ async def read_all_applications():
             "applications": applications,
             "application_count": len(applications)
         }
-
+        logger.info(f"[READ_ALL_APPLICATIONS] Successfully retrieved {len(applications)} applications")
         return response_data
 
     except Exception as e:
-        logger.error(f"Error in read_all_applications(): {e}", exc_info=True)
+        logger.error(f"[READ_ALL_APPLICATIONS] Database query failed: {type(e).__name__}: {str(e)}", exc_info=True)
         return {"success": False, "error": "Failed to fetch applications"}
 
 async def get_document_data(document_ref: Dict[str, Any]):
@@ -114,25 +119,28 @@ async def get_document_data(document_ref: Dict[str, Any]):
 
         return doc.get["data"]
     except Exception as e:
-        logger.error(f"Error fetching document data: {e}", exc_info=True)
+        logger.error(f"[GET_DOCUMENT_DATA] Failed to retrieve document {document_ref.get('document_id', 'unknown')}: {type(e).__name__}: {str(e)}", exc_info=True)
         return None
 
 async def read_applications_by_user_ssn(ssn: str):
     """
     Get all applications for a specific user by their SSN
     """
-    logger.info("Fetching applications for user")
+    logger.info("[READ_USER_APPLICATIONS] Fetching applications for user by SSN")
     try:
         # First find the user by SSN
         user = await db.users.find_one({"socialSecurityNumber": ssn})
         
         if not user:
+            logger.warning("[READ_USER_APPLICATIONS] User not found in database")
             return {"success": False, "error": f"No user found with SSN {ssn}"}
         
         # Get all application IDs for this user
         application_ids = user.get("applications", [])
+        user_id = user.get("user_id", "unknown")
         
         if not application_ids:
+            logger.info(f"[READ_USER_APPLICATIONS] User {user_id} has no applications")
             return {
                 "success": True, 
                 "applications": [],
@@ -160,11 +168,11 @@ async def read_applications_by_user_ssn(ssn: str):
             "user": bson_to_json(user),
             "application_count": len(applications)
         }
-
+        logger.info(f"[READ_USER_APPLICATIONS] Successfully retrieved {len(applications)} applications for user {user_id}")
         return response_data
 
     except Exception as e:
-        logger.error(f"Error in read_applications_by_user_ssn(): {e}", exc_info=True)
+        logger.error(f"[READ_USER_APPLICATIONS] Failed to fetch user applications: {type(e).__name__}: {str(e)}", exc_info=True)
         return {"success": False, "error": "Failed to fetch user applications"}
 
 
@@ -172,11 +180,12 @@ async def update_application_status(application_id: str, status: str, admin_note
     """
     Update the status of an application (approve/deny)
     """
-    logger.info(f"Updating application {application_id} status to: {status}")
+    logger.info(f"[UPDATE_STATUS] Updating application {application_id} status to: {status}")
     try:
         # Validate status
         valid_statuses = ["APPROVED", "DENIED", "PENDING", "UNDER_REVIEW"]
         if status.upper() not in valid_statuses:
+            logger.warning(f"[UPDATE_STATUS] Invalid status value attempted: {status} for application {application_id}")
             return {"success": False, "error": f"Invalid status. Must be one of: {valid_statuses}"}
         
         # Update the application
@@ -192,13 +201,14 @@ async def update_application_status(application_id: str, status: str, admin_note
         )
         
         if result.matched_count == 0:
+            logger.warning(f"[UPDATE_STATUS] Application not found: {application_id}")
             return {"success": False, "error": f"No application found with ID {application_id}"}
         
-        logger.info(f"Application {application_id} status updated to {status}")
+        logger.info(f"[UPDATE_STATUS] Successfully updated application {application_id} status to {status} (matched: {result.matched_count}, modified: {result.modified_count})")
         return {"success": True, "message": f"Application status updated to {status}"}
 
     except Exception as e:
-        logger.error(f"Error updating application status: {e}", exc_info=True)
+        logger.error(f"[UPDATE_STATUS] Database update failed for application {application_id}: {type(e).__name__}: {str(e)}", exc_info=True)
         return {"success": False, "error": "Failed to update application status"}
 
 
@@ -338,7 +348,7 @@ async def approve_application(application_id: str):
     """
     Mark an application as approved (human_final=True, final_decision="APPROVE")
     """
-    logger.info(f"Approving application: {application_id}")
+    logger.info(f"[APPROVE] Processing approval for application: {application_id}")
     try:
         result = await db.applications.update_one(
             {"application_id": application_id},
@@ -352,9 +362,10 @@ async def approve_application(application_id: str):
         )
 
         if result.matched_count == 0:
+            logger.warning(f"[APPROVE] Application not found: {application_id}")
             return {"success": False, "error": f"No application found with ID {application_id}"}
 
-        logger.info(f"Application {application_id} approved")
+        logger.info(f"[APPROVE] Successfully approved application {application_id} (matched: {result.matched_count}, modified: {result.modified_count})")
         return {
             "success": True,
             "message": f"Application {application_id} has been approved",
@@ -363,7 +374,7 @@ async def approve_application(application_id: str):
         }
 
     except Exception as e:
-        logger.error(f"Error approving application {application_id}: {e}", exc_info=True)
+        logger.error(f"[APPROVE] Database operation failed for application {application_id}: {type(e).__name__}: {str(e)}", exc_info=True)
         return {"success": False, "error": "Failed to approve application"}
 
 
@@ -374,7 +385,7 @@ async def deny_application(application_id: str):
     """
     Mark an application as denied (human_final=True, final_decision="REJECT")
     """
-    logger.info(f"Denying application: {application_id}")
+    logger.info(f"[DENY] Processing denial for application: {application_id}")
     try:
         result = await db.applications.update_one(
             {"application_id": application_id},
@@ -388,9 +399,10 @@ async def deny_application(application_id: str):
         )
 
         if result.matched_count == 0:
+            logger.warning(f"[DENY] Application not found: {application_id}")
             return {"success": False, "error": f"No application found with ID {application_id}"}
 
-        logger.info(f"Application {application_id} denied")
+        logger.info(f"[DENY] Successfully denied application {application_id} (matched: {result.matched_count}, modified: {result.modified_count})")
         return {
             "success": True,
             "message": f"Application {application_id} has been denied",
@@ -399,5 +411,5 @@ async def deny_application(application_id: str):
         }
 
     except Exception as e:
-        logger.error(f"Error denying application {application_id}: {e}", exc_info=True)
+        logger.error(f"[DENY] Database operation failed for application {application_id}: {type(e).__name__}: {str(e)}", exc_info=True)
         return {"success": False, "error": "Failed to deny application"}
