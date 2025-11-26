@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle, XCircle, AlertCircle, Plus, LogOut } from "lucide-react";
-import Cookies from "js-cookie";
+import { authService } from '../services/auth';
 import { config } from '../config/env';
 
 interface UserData {
@@ -40,6 +40,7 @@ export default function UserDash() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [isAdminLogin, setIsAdminLogin] = useState(false);
   const navigate = useNavigate();
 
   const getConfidenceColor = (confidence: number) => {
@@ -114,26 +115,14 @@ export default function UserDash() {
     }
   };
 
-  const getUserInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((word) => word.charAt(0))
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const getLastFourSSN = (ssn: string) => {
-    return ssn.slice(-4);
-  };
-
-  const fetchUserApplications = async (userName: string) => {
+  const fetchUserApplications = async (userIdOrSsn: string) => {
     try {
       // Step 1: Fetch all users from the database
       const usersResponse = await fetch(`${config.apiUrl}/api/users/all`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
+          ...authService.getAuthHeader(),
         },
       });
 
@@ -147,9 +136,11 @@ export default function UserDash() {
         throw new Error("Invalid users API response");
       }
 
-      // Step 2: Filter users by name (should be only one match since names are hardcoded)
+      // Step 2: Find user by SSN or user_id
       const matchingUser = usersResult.users.find(
-        (user: any) => user.name.toLowerCase() === userName.toLowerCase()
+        (user: any) => 
+          user.ssn === userIdOrSsn || 
+          user.name.toLowerCase() === userIdOrSsn.toLowerCase()
       );
 
       if (!matchingUser) {
@@ -163,6 +154,7 @@ export default function UserDash() {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
+            ...authService.getAuthHeader(),
           },
         }
       );
@@ -206,7 +198,7 @@ export default function UserDash() {
           );
 
           return {
-            name: matchingUser.name, // Use name from the users list
+            name: matchingUser.name,
             ssn: matchingUser.ssn,
             applications: mappedApplications,
           };
@@ -225,55 +217,51 @@ export default function UserDash() {
     e.preventDefault();
     setLoginError(null);
     
-    if (formData.username.trim() && formData.password.trim()) {
-      // Check for admin login
-      if (
-        formData.username.toLowerCase() === "admin" &&
-        formData.password === "admin"
-      ) {
-        const userData = {
-          name: "Admin",
-          ssn: "admin",
-        };
-        Cookies.set(
-          "userData",
-          JSON.stringify({ ...userData, role: "admin" }),
-          { expires: 7 }
-        );
+    if (!formData.username.trim() || !formData.password.trim()) {
+      setLoginError("Please enter both username and password");
+      return;
+    }
+
+    try {
+      if (isAdminLogin) {
+        // Admin login
+        await authService.adminLogin({
+          admin_id: formData.username.trim(),
+          admin_key: formData.password.trim(),
+        });
+
+        // Navigate to admin dashboard
         navigate("/admin");
-        return;
-      }
+      } else {
+        // Regular user login
+        const response = await authService.login({
+          user_id: formData.username.trim(),
+          password: formData.password.trim(),
+        });
 
-      // Regular user login - accept any credentials without validation
-      const userData = {
-        name: formData.username.trim(),
-        ssn: formData.password.trim(), // Using password as SSN for user matching
-      };
-
-      try {
-        Cookies.set("userData", JSON.stringify(userData), { expires: 7 });
+        // Set user data and fetch applications
+        const userData = {
+          name: response.user_id,
+          ssn: formData.username.trim(),
+        };
         setUserData(userData);
 
-        // Optionally fetch user applications from backend by name (but don't require it)
-        try {
-          const userApplications = await fetchUserApplications(userData.name);
-          if (userApplications) {
-            setDatabaseUser(userApplications);
-          }
-        } catch (error) {
-          // Silently ignore errors - user can still proceed without existing applications
-          console.log("No existing applications found for user");
+        // Fetch user applications
+        const userApplications = await fetchUserApplications(response.user_id);
+        if (userApplications) {
+          setDatabaseUser(userApplications);
         }
-        
-        setFormData({ username: "", password: "" });
-      } catch (error) {
-        setLoginError("An error occurred while signing in. Please try again.");
       }
+      
+      setFormData({ username: "", password: "" });
+    } catch (error: any) {
+      console.error("Login error:", error);
+      setLoginError(error.message || "Invalid credentials. Please try again.");
     }
   };
 
   const handleSignOut = () => {
-    Cookies.remove("userData");
+    authService.logout();
     setUserData(null);
     setDatabaseUser(null);
     navigate("/");
@@ -281,23 +269,27 @@ export default function UserDash() {
 
   useEffect(() => {
     const initializeData = async () => {
-      // Check for saved user data
-      const savedUserData = Cookies.get("userData");
+      // Check if user is already authenticated
+      const userInfo = await authService.verifyToken();
 
-      if (savedUserData) {
+      if (userInfo) {
+        // User is authenticated
+        if (userInfo.is_admin) {
+          // Admin user, redirect to admin dashboard
+          navigate("/admin");
+          return;
+        }
+
+        // Regular user, set up data
+        const userData = {
+          name: userInfo.user_id,
+          ssn: userInfo.user_id,
+        };
+        setUserData(userData);
+
+        // Fetch user applications from backend
         try {
-          const parsed = JSON.parse(savedUserData);
-
-          // Check if this is an admin user
-          if (parsed.role === "admin") {
-            navigate("/admin");
-            return;
-          }
-
-          setUserData(parsed);
-
-          // Fetch user applications from backend by name
-          const userApplications = await fetchUserApplications(parsed.name);
+          const userApplications = await fetchUserApplications(userInfo.user_id);
           
           if (!userApplications) {
             setError("Failed to load your applications. Please try again.");
@@ -306,14 +298,14 @@ export default function UserDash() {
           }
         } catch (error) {
           setError("An error occurred while loading your data.");
-          Cookies.remove("userData");
         }
       }
+      
       setIsLoading(false);
     };
 
     initializeData();
-  }, []);
+  }, [navigate]);
 
   if (isLoading) {
     return (
@@ -335,9 +327,33 @@ export default function UserDash() {
             <h1 className="text-4xl md:text-5xl font-thin text-gray-900 mb-2">
               Sign In
             </h1>
-            <p className="text-gray-600 font-light">
+            <p className="text-gray-600 font-light mb-4">
               Access your disability benefits dashboard
             </p>
+            <div className="flex justify-center space-x-4">
+              <button
+                type="button"
+                onClick={() => setIsAdminLogin(false)}
+                className={`px-4 py-2 text-sm font-light transition-all ${
+                  !isAdminLogin
+                    ? "border-b-2 border-gray-900 text-gray-900"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                User Login
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsAdminLogin(true)}
+                className={`px-4 py-2 text-sm font-light transition-all ${
+                  isAdminLogin
+                    ? "border-b-2 border-gray-900 text-gray-900"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Admin Login
+              </button>
+            </div>
           </div>
 
           {/* Form */}
@@ -354,7 +370,7 @@ export default function UserDash() {
                   htmlFor="username"
                   className="block text-sm font-light text-gray-600 mb-2 uppercase tracking-wider text-xs"
                 >
-                  Username
+                  {isAdminLogin ? "Admin ID" : "User ID / SSN"}
                 </label>
                 <input
                   type="text"
@@ -367,7 +383,7 @@ export default function UserDash() {
                     }))
                   }
                   className="w-full px-4 py-3 border border-gray-300 focus:border-gray-900 transition-colors duration-200 font-light"
-                  placeholder="Enter your username"
+                  placeholder={isAdminLogin ? "Enter admin ID" : "Enter your user ID or SSN"}
                   required
                 />
               </div>
@@ -377,7 +393,7 @@ export default function UserDash() {
                   htmlFor="password"
                   className="block text-sm font-light text-gray-600 mb-2 uppercase tracking-wider text-xs"
                 >
-                  Password
+                  {isAdminLogin ? "Admin Key" : "Password"}
                 </label>
                 <input
                   type="password"
@@ -390,7 +406,7 @@ export default function UserDash() {
                     }))
                   }
                   className="w-full px-4 py-3 border border-gray-300 focus:border-gray-900 transition-colors duration-200 font-light"
-                  placeholder="Enter your password"
+                  placeholder={isAdminLogin ? "Enter admin key" : "Enter your password"}
                   required
                 />
               </div>

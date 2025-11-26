@@ -13,7 +13,7 @@ import {
   LogOut
 } from 'lucide-react';
 import MinimalNavbar from '../../components/MinimalNavbar';
-import Cookies from 'js-cookie';
+import { authService } from '../../services/auth';
 import { config } from '../../config/env';
 
 interface Application {
@@ -46,6 +46,14 @@ export default function AdminDash() {
 
   useEffect(() => {
     const fetchApplications = async () => {
+      // Verify admin authentication first
+      const userInfo = await authService.verifyToken();
+      if (!userInfo || !userInfo.is_admin) {
+        // Not authenticated as admin, redirect to user page
+        navigate('/user');
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
@@ -55,6 +63,7 @@ export default function AdminDash() {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
+            ...authService.getAuthHeader(),
           },
         });
         
@@ -103,7 +112,7 @@ export default function AdminDash() {
     };
 
     fetchApplications();
-  }, []);
+  }, [navigate]);
 
   const getRecommendationColor = (recommendation: string) => {
     switch (recommendation) {
@@ -149,7 +158,7 @@ export default function AdminDash() {
   };
 
   const handleSignOut = () => {
-    Cookies.remove('userData');
+    authService.logout();
     navigate('/');
   };
 

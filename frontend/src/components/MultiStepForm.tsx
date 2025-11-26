@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CheckCircle, ArrowRight, ArrowLeft, Upload, FileText, User, Heart, DollarSign, Shield, AlertCircle } from 'lucide-react';
-import Cookies from 'js-cookie';
+import { authService } from '../services/auth';
 import { config } from '../config/env';
 
 interface FormData {
@@ -174,9 +174,14 @@ export default function MultiStepForm() {
         }
       });
       
-      // Submit to backend
+      // Submit to backend with auth header
+      const headers: Record<string, string> = {
+        ...authService.getAuthHeader() as Record<string, string>,
+      };
+      
       const response = await fetch(`${config.apiUrl}/api/benefit-application`, {
         method: 'POST',
+        headers,
         body: submitData,
       });
       
@@ -184,13 +189,7 @@ export default function MultiStepForm() {
         throw new Error('Failed to submit application');
       }
       
-      // Only show success after backend confirms
-      const userData = {
-        name: `${formData.firstName} ${formData.lastName}`,
-        ssn: formData.socialSecurityNumber
-      };
-      Cookies.set('userData', JSON.stringify(userData), { expires: 7 });
-      
+      // Success - user is already authenticated, just show success
       setIsSubmitted(true);
       setShowInterlude(true);
     } catch (error) {

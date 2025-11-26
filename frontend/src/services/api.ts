@@ -1,4 +1,5 @@
 import { config } from '../config/env';
+import { authService } from './auth';
 
 // Backend API Response Types
 interface ReadResponse<T = any> {
@@ -67,7 +68,11 @@ export const api = {
   // Get specific application by ID
   async getApplicationById(applicationId: string): Promise<Application | null> {
     try {
-      const response = await fetch(`${config.apiUrl}/api/application/${applicationId}`);
+      const response = await fetch(`${config.apiUrl}/api/application/${applicationId}`, {
+        headers: {
+          ...authService.getAuthHeader(),
+        },
+      });
       if (!response.ok) {
         return null;
       }
@@ -115,7 +120,10 @@ export const api = {
     try {
       const response = await fetch(`${config.apiUrl}/api/application/approve/${applicationId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...authService.getAuthHeader(),
+        },
       });
 
       if (!response.ok) {
@@ -141,7 +149,10 @@ export const api = {
     try {
       const response = await fetch(`${config.apiUrl}/api/application/deny/${applicationId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...authService.getAuthHeader(),
+        },
       });
 
       if (!response.ok) {
