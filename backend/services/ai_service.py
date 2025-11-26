@@ -173,21 +173,6 @@ async def merge_pdfs(form_data: Dict[str, Any], document_list: List[bytes]) -> T
         logger.error(f"[MERGE_PDF] PDF generation failed: {type(e).__name__}: {str(e)}", exc_info=True)
         raise e
 
-        
-        
-
-# --------------------------------------------------------
-# Load prompt.md content
-# --------------------------------------------------------
-def load_prompt() -> str:
-    prompt_path = os.path.join(os.path.dirname(__file__), "../../prompt.md")
-    try:
-        with open(prompt_path, "r", encoding="utf-8") as f:
-            return f.read()
-    except Exception as e:
-        logger.warning(f"Could not load prompt.md: {e}")
-        return "You are an AI that analyzes medical and income records for SSDI eligibility."
-
 # --------------------------------------------------------
 # Store documents in MongoDB GridFS or as Binary
 # --------------------------------------------------------
@@ -341,6 +326,20 @@ async def save_or_update_user(name: str, socialSecurityNumber: str, application_
             "error": str(e)
         }
 
+
+  
+
+# --------------------------------------------------------
+# Load prompt.md content
+# --------------------------------------------------------
+def load_prompt() -> str:
+    prompt_path = os.path.join(os.path.dirname(__file__), "../../prompt.md")
+    try:
+        with open(prompt_path, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        logger.warning(f"Could not load prompt.md: {e}")
+        return "You are an AI that analyzes medical and income records for SSDI eligibility."
 
 
 # --------------------------------------------------------

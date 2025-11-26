@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from utils.api_models import ReadResponse, ErrorResponse
 from utils.exceptions import not_found_exception
 from utils.logger import get_logger
-from core.crud import (
+from services.application_service import (
     read_all_applications,
     read_all_users,
     get_filtered_applications,

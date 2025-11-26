@@ -106,8 +106,8 @@ async def create_indexes():
         # Index on _id is automatic, but we can add created_at if needed
         await db.documents.create_index(
             "created_at",
-            name="idx_doc_created_at",
-            expireAfterSeconds=None  # Set to number of seconds for TTL if needed
+            name="idx_doc_created_at"
+            # expireAfterSeconds can be added here if TTL is needed (e.g., 2592000 for 30 days)
         )
         logger.info("[DB_INIT] ✓ Created index on documents.created_at")
         

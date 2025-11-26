@@ -13,8 +13,8 @@ from utils.api_models import (
 )
 from utils.exceptions import internal_error_exception, not_found_exception, validation_exception
 from utils.logger import get_logger
-from core.ai import ai
-from core.crud import read, read_application_by_id
+from services.ai_service import ai
+from services.application_service import read, read_application_by_id
 
 logger = get_logger(__name__)
 

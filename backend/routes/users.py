@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from utils.api_models import ReadResponse, ErrorResponse
 from utils.exceptions import not_found_exception
 from utils.logger import get_logger
-from core.crud import read_applications_by_user_ssn
+from services.application_service import read_applications_by_user_ssn
 
 logger = get_logger(__name__)
 
