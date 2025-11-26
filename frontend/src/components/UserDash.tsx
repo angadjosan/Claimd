@@ -11,7 +11,12 @@ interface UserData {
 
 interface Application {
   application_id: string;
-  documents: string[];
+  documents?: {
+    document_id: string;
+    filename: string;
+    content_type: string;
+  };
+  document?: string; // Base64 encoded
   claude_confidence_level: number;
   claude_summary: string;
   claude_recommendation: string;

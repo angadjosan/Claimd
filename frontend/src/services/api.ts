@@ -1,36 +1,54 @@
 import { config } from '../config/env';
 
-// API service for admin dashboard operations
+// Backend API Response Types
+interface ReadResponse<T = any> {
+  data: T;
+}
+
+interface ApiSuccessResponse {
+  success: boolean;
+  [key: string]: any;
+}
+
+// Application interface matching backend schema
 export interface Application {
   application_id: string;
-  document: string;
-  claude_confidence_level: number;
+  user_id?: string;
+  personal_information?: {
+    name?: string;
+    social_security_number?: string;
+    date_of_birth?: string;
+    address?: {
+      street?: string;
+      city?: string;
+      state?: string;
+      zip_code?: string;
+    };
+  };
+  documents?: {
+    document_id: string;
+    filename: string;
+    content_type: string;
+  };
+  document?: string; // Base64 encoded PDF
   claude_summary: string;
   claude_recommendation: 'approve' | 'deny' | 'further_review';
+  claude_confidence_level: number;
+  phase_1_current_work?: any;
+  phase_2_medical_severity?: any;
+  phase_3_listings?: any;
+  phase_4_rfc?: any;
+  phase_5_vocational?: any;
+  human_final?: boolean;
+  final_decision?: string;
+  admin_status?: string;
+  admin_notes?: string;
+  status_updated_at?: string;
+  decision_updated_at?: string;
+  created_at?: string;
+  // Convenience fields for frontend
   applicant_name?: string;
   applicant_ssn?: string;
-  socialSecurityNumber?: string;
-  // Phase data
-  phase_1_current_work?: {
-    finding?: string;
-    status?: string;
-  };
-  phase_2_medical_severity?: {
-    finding?: string;
-    status?: string;
-  };
-  phase_3_listings?: {
-    finding?: string;
-    status?: string;
-  };
-  phase_4_rfc?: {
-    reason_cannot_assess?: string;
-    status?: string;
-  };
-  phase_5_vocational?: {
-    reason?: string;
-    status?: string;
-  };
 }
 
 export interface Applicant {
@@ -150,9 +168,6 @@ export interface Applicant {
   }
 ];*/
 
-// Simulate API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 export const api = {
   // Get all applications for admin dashboard
   async getAllApplications(): Promise<Application[]> {
@@ -168,10 +183,11 @@ export const api = {
         console.error('Failed to fetch application:', response.statusText);
         return null;
       }
-      const result = await response.json();
+      const result: ReadResponse = await response.json();
+      const data = result.data;
       
-      if (result.data.success && result.data.application) {
-        const app = result.data.application;
+      if (data.success && data.application) {
+        const app = data.application;
         
         // Convert backend recommendation format to frontend format
         const backendDecision = app.final_decision || app.claude_recommendation || '';
@@ -221,13 +237,13 @@ export const api = {
         return { success: false, message: 'Failed to approve application' };
       }
 
-      const result = await response.json();
-      const data = result?.data;
+      const result: ReadResponse = await response.json();
+      const data = result.data as ApiSuccessResponse;
 
-      if (data?.success) {
+      if (data.success) {
         return { success: true, message: `✅ Application ${applicationId} approved successfully.` };
       } else {
-        return { success: false, message: data?.error || 'Approval failed' };
+        return { success: false, message: (data as any).error || 'Approval failed' };
       }
     } catch (error) {
       console.error('⚠️ Error approving application:', error);
@@ -249,13 +265,13 @@ export const api = {
         return { success: false, message: 'Failed to deny application' };
       }
 
-      const result = await response.json();
-      const data = result?.data;
+      const result: ReadResponse = await response.json();
+      const data = result.data as ApiSuccessResponse;
 
-      if (data?.success) {
+      if (data.success) {
         return { success: true, message: `🚫 Application ${applicationId} denied successfully.` };
       } else {
-        return { success: false, message: data?.error || 'Denial failed' };
+        return { success: false, message: (data as any).error || 'Denial failed' };
       }
     } catch (error) {
       console.error('⚠️ Error denying application:', error);

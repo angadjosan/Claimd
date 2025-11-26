@@ -18,7 +18,12 @@ import { config } from '../../config/env';
 
 interface Application {
   application_id: string;
-  document: string;
+  document?: string; // Base64 encoded
+  documents?: {
+    document_id: string;
+    filename: string;
+    content_type: string;
+  };
   claude_confidence_level: number;
   claude_summary: string;
   claude_recommendation: 'approve' | 'further_review' | 'deny';
