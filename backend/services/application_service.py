@@ -7,11 +7,13 @@ from db.connectDB import db
 import base64
 from bson import Binary
 import sys
+import uuid
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.logger import get_logger
 from db.db_retry import retry_on_db_error
+from utils.db_utils import bson_to_json
 
 # Load environment
 dotenv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.env"))
@@ -19,28 +21,6 @@ load_dotenv(dotenv_path)
 
 # Initialize logger
 logger = get_logger(__name__)
-
-# --------------------------------------------------------
-# Utility: Convert MongoDB BSON → JSON-safe
-# --------------------------------------------------------
-def bson_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
-    """Recursively converts MongoDB BSON types (ObjectId, datetime) into JSON-safe types."""
-    if not doc:
-        return {}
-
-    result = {}
-    for key, value in doc.items():
-        if isinstance(value, ObjectId):
-            result[key] = str(value)
-        elif isinstance(value, datetime):
-            result[key] = value.isoformat()
-        elif isinstance(value, list):
-            result[key] = [bson_to_json(v) if isinstance(v, dict) else v for v in value]
-        elif isinstance(value, dict):
-            result[key] = bson_to_json(value)
-        else:
-            result[key] = value
-    return result
 
 
 # --------------------------------------------------------
@@ -470,3 +450,64 @@ async def deny_application(application_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"[DENY] Database operation failed for application {application_id}: {type(e).__name__}: {str(e)}", exc_info=True)
         return {"success": False, "error": "Failed to deny application"}
+
+
+# --------------------------------------------------------
+# Save application to MongoDB
+# --------------------------------------------------------
+@retry_on_db_error(max_attempts=3, initial_delay=1.0)
+async def save_application_to_db(json_result: Dict[str, Any], document: Dict[str, str], raw_response: str) -> Optional[str]:
+    """
+    Save the SSDI application analysis to MongoDB with required fields.
+    
+    Args:
+        json_result: Parsed AI analysis results
+        document: Document reference from database
+        raw_response: Raw Claude API response
+    
+    Returns:
+        Application ID if successful, None otherwise
+    """
+    try:
+        # Generate unique application ID
+        application_id = str(uuid.uuid4())
+        
+        # Prepare the document to insert
+        application_doc = {
+            "application_id": application_id,
+            "documents": document,
+            "claude_confidence_level": json_result.get("confidence_level", 0),
+            "claude_summary": json_result.get("summary", ""),
+            "final_decision": json_result.get("recommendation", "UNKNOWN"),
+            "human_final": False,
+            
+            # Additional useful fields from the analysis
+            "personal_information": json_result.get("personal_information", {}),
+            "assessment_type": json_result.get("assessment_type", ""),
+            "assessment_date": json_result.get("assessment_date", ""),
+            "phase_1_current_work": json_result.get("phase_1_current_work", {}),
+            "phase_2_medical_severity": json_result.get("phase_2_medical_severity", {}),
+            "phase_3_listings": json_result.get("phase_3_listings", {}),
+            "phase_4_rfc": json_result.get("phase_4_rfc", {}),
+            "phase_5_vocational": json_result.get("phase_5_vocational", {}),
+            "overall_assessment": json_result.get("overall_assessment", {}),
+            "next_steps": json_result.get("next_steps", {}),
+            "evidence_summary": json_result.get("evidence_summary", {}),
+            
+            # Metadata
+            "created_at": datetime.now(timezone.utc),
+            "raw_claude_response": raw_response,
+            "full_analysis": json_result
+        }
+        
+        # Insert into MongoDB
+        result = await db.applications.insert_one(application_doc)
+        
+        logger.info(f"[SAVE_APPLICATION] Successfully saved application with ID: {application_id} (MongoDB _id: {result.inserted_id})")
+        logger.debug(f"[SAVE_APPLICATION] Application decision: {application_doc['final_decision']}, Human review required: {application_doc['human_final']}")
+        
+        return application_id
+        
+    except Exception as e:
+        logger.error(f"[SAVE_APPLICATION] Database insert failed: {type(e).__name__}: {str(e)}", exc_info=True)
+        return None
