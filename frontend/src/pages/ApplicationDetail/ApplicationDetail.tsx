@@ -40,7 +40,7 @@ export default function ApplicationDetail() {
         const doc = data.document;
 
         if (!doc) {
-          console.warn('⚠️ No document field found');
+          // No document available
         } else if (typeof doc === 'string') {
           const match = doc.match(/Binary\.createFromBase64\('([^']+)'/);
           if (match) base64 = match[1];
@@ -52,8 +52,6 @@ export default function ApplicationDetail() {
         if (base64) {
           const dataUrl = `data:application/pdf;base64,${base64}`;
           setPdfSrc(dataUrl);
-        } else {
-          console.warn('❌ Could not extract base64 from document');
         }
       } catch (error) {
         console.error('Error fetching application:', error);
@@ -80,7 +78,6 @@ export default function ApplicationDetail() {
         type,
       });
     } catch (error) {
-      console.error(`Error on ${type}:`, error);
       setActionResult({
         success: false,
         message: `Failed to ${type} application.`,

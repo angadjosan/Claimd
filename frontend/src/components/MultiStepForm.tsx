@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CheckCircle, ArrowRight, ArrowLeft, Upload, FileText, User, Heart, DollarSign, Shield, AlertCircle } from 'lucide-react';
 import Cookies from 'js-cookie';
+import { config } from '../config/env';
 
 interface FormData {
   // Personal Information
@@ -55,6 +56,8 @@ export default function MultiStepForm() {
   const [showInterlude, setShowInterlude] = useState(false);
   const [ssnFocused, setSsnFocused] = useState(false);
   const [ssnDisplayValue, setSsnDisplayValue] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const steps = [
     { id: 1, title: 'Personal Information', icon: User, description: 'Basic details about yourself' },
@@ -157,33 +160,43 @@ export default function MultiStepForm() {
   };
 
   const handleSubmit = async () => {
-    // Show interlude screen immediately
-    setIsSubmitted(true);
-    setShowInterlude(true);
+    setIsSubmitting(true);
+    setSubmitError(null);
     
-    // Store user data in cookie for automatic login
-    const userData = {
-      name: `${formData.firstName} ${formData.lastName}`,
-      ssn: formData.socialSecurityNumber
-    };
-    Cookies.set('userData', JSON.stringify(userData), { expires: 7 });
-    
-    // Send data to backend in the background (fire and forget)
-    const submitData = new FormData();
-    Object.entries(formData).forEach(([key, value]) => {
-      if (value instanceof File) {
-        submitData.append(key, value);
-      } else {
-        submitData.append(key, String(value));
+    try {
+      // Prepare form data
+      const submitData = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value instanceof File) {
+          submitData.append(key, value);
+        } else {
+          submitData.append(key, String(value));
+        }
+      });
+      
+      // Submit to backend
+      const response = await fetch(`${config.apiUrl}/api/benefit-application`, {
+        method: 'POST',
+        body: submitData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to submit application');
       }
-    });
-    
-    fetch('http://localhost:8000/api/benefit-application', {
-      method: 'POST',
-      body: submitData,
-    }).catch(error => {
-      console.error('Error submitting form to backend:', error);
-    });
+      
+      // Only show success after backend confirms
+      const userData = {
+        name: `${formData.firstName} ${formData.lastName}`,
+        ssn: formData.socialSecurityNumber
+      };
+      Cookies.set('userData', JSON.stringify(userData), { expires: 7 });
+      
+      setIsSubmitted(true);
+      setShowInterlude(true);
+    } catch (error) {
+      setSubmitError('Failed to submit your application. Please try again.');
+      setIsSubmitting(false);
+    }
   };
 
   const handleGoToDashboard = () => {
@@ -789,6 +802,12 @@ export default function MultiStepForm() {
 
       {/* Step Content */}
       <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
+        {submitError && (
+          <div className="mb-6 border border-red-300 bg-red-50 p-4 flex items-start space-x-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-red-800 font-light">{submitError}</p>
+          </div>
+        )}
         {renderStepContent()}
       </div>
 
@@ -797,7 +816,8 @@ export default function MultiStepForm() {
         {currentStep > 1 && (
           <button
             onClick={prevStep}
-            className="px-6 py-3 rounded-lg font-semibold flex items-center space-x-2 bg-gray-200 text-gray-700 hover:bg-gray-300"
+            disabled={isSubmitting}
+            className="px-6 py-3 rounded-lg font-semibold flex items-center space-x-2 bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ArrowLeft className="w-5 h-5" />
             <span>Previous</span>
@@ -820,10 +840,20 @@ export default function MultiStepForm() {
         ) : (
           <button
             onClick={handleSubmit}
-            className="px-6 py-3 rounded-lg font-semibold flex items-center space-x-2 bg-green-600 text-white hover:bg-green-700"
+            disabled={isSubmitting}
+            className="px-6 py-3 rounded-lg font-semibold flex items-center space-x-2 bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span>Submit Application</span>
-            <ArrowRight className="w-5 h-5" />
+            {isSubmitting ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>Submitting...</span>
+              </>
+            ) : (
+              <>
+                <span>Submit Application</span>
+                <ArrowRight className="w-5 h-5" />
+              </>
+            )}
           </button>
         )}
       </div>

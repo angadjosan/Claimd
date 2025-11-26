@@ -105,6 +105,14 @@ DISCLAIMERS:
 ------------------------------------------------------------
 ## FINAL OUTPUT
 
+**CRITICAL: Your response MUST follow this exact format:**
+
+1. Start your JSON output with: <START_OUTPUT>
+2. Provide the JSON (formatted as shown below)
+3. End your JSON output with: <END_OUTPUT>
+
+**DO NOT include any text before <START_OUTPUT> or after <END_OUTPUT>**
+
 When you start outputting, please include the token <START_OUTPUT>. When finished, please end with <END_OUTPUT>. In this area, please only output according to the following JSON format. Example is below.
 
 **Usage Instructions:**

@@ -14,10 +14,16 @@ import {
 } from 'lucide-react';
 import MinimalNavbar from '../../components/MinimalNavbar';
 import Cookies from 'js-cookie';
+import { config } from '../../config/env';
 
 interface Application {
   application_id: string;
-  document: string;
+  document?: string; // Base64 encoded
+  documents?: {
+    document_id: string;
+    filename: string;
+    content_type: string;
+  };
   claude_confidence_level: number;
   claude_summary: string;
   claude_recommendation: 'approve' | 'further_review' | 'deny';
@@ -34,6 +40,7 @@ export default function AdminDash() {
   const navigate = useNavigate();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRecommendation, setFilterRecommendation] = useState<string>('all');
 
@@ -41,9 +48,10 @@ export default function AdminDash() {
     const fetchApplications = async () => {
       try {
         setLoading(true);
+        setError(null);
         
         // Fetch filtered applications (human_final = False)
-        const response = await fetch('http://localhost:8000/api/users/filtered', {
+        const response = await fetch(`${config.apiUrl}/api/users/filtered`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -55,7 +63,6 @@ export default function AdminDash() {
         }
         
         const result = await response.json();
-        console.log('Fetched filtered applications from API:', result);
         
         if (!result.success || !result.applications) {
           throw new Error('Invalid API response');
@@ -86,12 +93,10 @@ export default function AdminDash() {
         });
         
         setApplications(mappedApplications);
-        console.log('Total filtered applications loaded:', mappedApplications.length);
         
       } catch (error) {
-        console.error('API call failed:', error);
         setApplications([]);
-        alert('Failed to load applications from backend. Please ensure the backend server is running.');
+        setError(error instanceof Error ? error.message : 'Failed to load applications. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -154,6 +159,32 @@ export default function AdminDash() {
         <div className="flex items-center space-x-3">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           <span className="text-lg text-slate-600">Loading applications...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center px-6">
+        <div className="max-w-md w-full text-center">
+          <div className="border border-red-300 bg-red-50 p-8 mb-6">
+            <AlertCircle className="w-12 h-12 text-red-600 mx-auto mb-4" />
+            <h2 className="text-2xl font-thin text-gray-900 mb-2">Error Loading Applications</h2>
+            <p className="text-gray-600 font-light mb-6">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="border border-gray-900 px-6 py-2 hover:bg-gray-900 hover:text-white transition-all duration-200 font-light"
+            >
+              Retry
+            </button>
+          </div>
+          <button
+            onClick={() => navigate('/')}
+            className="text-gray-600 hover:text-gray-900 font-light"
+          >
+            Return to Home
+          </button>
         </div>
       </div>
     );
