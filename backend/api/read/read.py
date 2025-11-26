@@ -11,6 +11,7 @@ import sys
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from logger import get_logger
+from db_retry import retry_on_db_error
 
 # Load environment
 dotenv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.env"))
@@ -45,6 +46,7 @@ def bson_to_json(doc: Dict[str, Any]) -> Dict[str, Any]:
 # --------------------------------------------------------
 # Read single application by ID
 # --------------------------------------------------------
+@retry_on_db_error(max_attempts=3, initial_delay=1.0)
 async def read_application_by_id(application_id: str):
     """
     Given an application_id, find and return the full application data
@@ -81,6 +83,7 @@ async def read_application_by_id(application_id: str):
 # --------------------------------------------------------
 # Main read function
 # --------------------------------------------------------
+@retry_on_db_error(max_attempts=3, initial_delay=1.0)
 async def read_all_applications():
     """
     Get all applications from the database for admin dashboard
@@ -176,6 +179,7 @@ async def read_applications_by_user_ssn(ssn: str):
         return {"success": False, "error": "Failed to fetch user applications"}
 
 
+@retry_on_db_error(max_attempts=3, initial_delay=1.0)
 async def update_application_status(application_id: str, status: str, admin_notes: str = ""):
     """
     Update the status of an application (approve/deny)
@@ -212,6 +216,7 @@ async def update_application_status(application_id: str, status: str, admin_note
         return {"success": False, "error": "Failed to update application status"}
 
 
+@retry_on_db_error(max_attempts=3, initial_delay=1.0)
 async def get_pending_users():
     try:
         logger.info("Fetching pending users")
@@ -344,6 +349,7 @@ async def read():
 
 
 
+@retry_on_db_error(max_attempts=3, initial_delay=1.0)
 async def approve_application(application_id: str):
     """
     Mark an application as approved (human_final=True, final_decision="APPROVE")
@@ -381,6 +387,7 @@ async def approve_application(application_id: str):
 # --------------------------------------------------------
 # Deny an application
 # --------------------------------------------------------
+@retry_on_db_error(max_attempts=3, initial_delay=1.0)
 async def deny_application(application_id: str):
     """
     Mark an application as denied (human_final=True, final_decision="REJECT")

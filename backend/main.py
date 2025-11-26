@@ -6,6 +6,7 @@ from api.ai.ai import ai
 from api.read.read import read, read_application_by_id, read_all_applications, read_applications_by_user_ssn, update_application_status, read_all_users, get_filtered_applications, approve_application, deny_application
 from api.logger import get_logger
 from api.exceptions import internal_error_exception, not_found_exception, validation_exception
+from api.db_init import create_indexes, verify_database_connection, get_database_stats
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -52,6 +53,76 @@ app.add_middleware(
 )
 
 logger.info(f"CORS configured with origins: {ALLOWED_ORIGINS}")
+
+
+# STARTUP EVENT: Initialize database indexes and verify connection
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on application startup."""
+    try:
+        logger.info("[STARTUP] Initializing application...")
+        
+        # Create database indexes
+        logger.info("[STARTUP] Creating database indexes...")
+        await create_indexes()
+        logger.info("[STARTUP] Database indexes created successfully")
+        
+        # Verify database connection
+        logger.info("[STARTUP] Verifying database connection...")
+        is_connected = await verify_database_connection()
+        if is_connected:
+            logger.info("[STARTUP] Database connection verified")
+        else:
+            logger.error("[STARTUP] Database connection verification failed")
+            raise RuntimeError("Failed to connect to database")
+        
+        # Log database statistics
+        stats = await get_database_stats()
+        logger.info(f"[STARTUP] Database stats: {stats}")
+        
+        logger.info("[STARTUP] Application startup complete")
+        
+    except Exception as e:
+        logger.error(
+            f"[STARTUP] Application startup failed: {type(e).__name__}: {str(e)}",
+            exc_info=True
+        )
+        raise
+
+
+# HEALTH CHECK ENDPOINTS
+@app.get("/health")
+async def health_check():
+    """Basic health check endpoint."""
+    return {"status": "healthy", "service": "ssdi-backend"}
+
+
+@app.get("/health/ready")
+async def readiness_check():
+    """Readiness check with database connectivity verification."""
+    try:
+        is_connected = await verify_database_connection()
+        
+        if not is_connected:
+            raise HTTPException(status_code=503, detail="Database connection failed")
+        
+        stats = await get_database_stats()
+        
+        return {
+            "status": "ready",
+            "service": "ssdi-backend",
+            "database": "connected",
+            "stats": stats
+        }
+    except Exception as e:
+        logger.error(
+            f"[HEALTH_CHECK] Readiness check failed: {type(e).__name__}: {str(e)}",
+            exc_info=True
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Service not ready"
+        )
 
 # REQUEST: MultiStepForm data with file uploads
 # RESPONSE: Processing results with MongoDB document IDs

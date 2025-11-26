@@ -21,6 +21,7 @@ from PyPDF2 import PdfMerger
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from connectDB import db
 from logger import get_logger
+from db_retry import retry_on_db_error
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -212,6 +213,7 @@ async def store_documents_in_db(combinedDocument, combinedDocumentName):
 # --------------------------------------------------------
 # Save application to MongoDB
 # --------------------------------------------------------
+@retry_on_db_error(max_attempts=3, initial_delay=1.0)
 async def save_application_to_db(json_result, document, raw_response):
     """
     Save the SSDI application analysis to MongoDB with required fields
@@ -264,6 +266,7 @@ async def save_application_to_db(json_result, document, raw_response):
 # --------------------------------------------------------
 # Create or update a user tied to an application
 # --------------------------------------------------------
+@retry_on_db_error(max_attempts=3, initial_delay=1.0)
 async def save_or_update_user(name: str, socialSecurityNumber: str, application_id: str):
     """
     Creates a new user if not found, otherwise appends the new application_id
