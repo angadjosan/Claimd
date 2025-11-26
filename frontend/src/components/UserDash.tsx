@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle, XCircle, AlertCircle, Plus, LogOut } from "lucide-react";
 import Cookies from "js-cookie";
+import { config } from '../config/env';
 
 interface UserData {
   name: string;
@@ -122,7 +123,7 @@ export default function UserDash() {
   const fetchUserApplications = async (userName: string) => {
     try {
       // Step 1: Fetch all users from the database
-      const usersResponse = await fetch("http://localhost:8000/api/users/all", {
+      const usersResponse = await fetch(`${config.apiUrl}/api/users/all`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -154,7 +155,7 @@ export default function UserDash() {
 
       // Step 3: Fetch applications for this user using their SSN
       const appResponse = await fetch(
-        `http://localhost:8000/api/user/applications/${matchingUser.ssn}`,
+        `${config.apiUrl}/api/user/applications/${matchingUser.ssn}`,
         {
           method: "GET",
           headers: {

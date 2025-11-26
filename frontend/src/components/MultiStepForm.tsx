@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CheckCircle, ArrowRight, ArrowLeft, Upload, FileText, User, Heart, DollarSign, Shield, AlertCircle } from 'lucide-react';
 import Cookies from 'js-cookie';
+import { config } from '../config/env';
 
 interface FormData {
   // Personal Information
@@ -178,7 +179,7 @@ export default function MultiStepForm() {
       }
     });
     
-    fetch('http://localhost:8000/api/benefit-application', {
+    fetch(`${config.apiUrl}/api/benefit-application`, {
       method: 'POST',
       body: submitData,
     }).catch(error => {

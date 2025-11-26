@@ -1,3 +1,5 @@
+import { config } from '../config/env';
+
 // API service for admin dashboard operations
 export interface Application {
   application_id: string;
@@ -161,7 +163,7 @@ export const api = {
   // Get specific application by ID
   async getApplicationById(applicationId: string): Promise<Application | null> {
     try {
-      const response = await fetch(`http://localhost:8000/api/application/${applicationId}`);
+      const response = await fetch(`${config.apiUrl}/api/application/${applicationId}`);
       if (!response.ok) {
         console.error('Failed to fetch application:', response.statusText);
         return null;
@@ -208,7 +210,7 @@ export const api = {
 
   async approveApplication(applicationId: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch(`http://localhost:8000/api/application/approve/${applicationId}`, {
+      const response = await fetch(`${config.apiUrl}/api/application/approve/${applicationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -236,7 +238,7 @@ export const api = {
   // Deny application
   async denyApplication(applicationId: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch(`http://localhost:8000/api/application/deny/${applicationId}`, {
+      const response = await fetch(`${config.apiUrl}/api/application/deny/${applicationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
       });

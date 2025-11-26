@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import MinimalNavbar from '../../components/MinimalNavbar';
 import Cookies from 'js-cookie';
+import { config } from '../../config/env';
 
 interface Application {
   application_id: string;
@@ -43,7 +44,7 @@ export default function AdminDash() {
         setLoading(true);
         
         // Fetch filtered applications (human_final = False)
-        const response = await fetch('http://localhost:8000/api/users/filtered', {
+        const response = await fetch(`${config.apiUrl}/api/users/filtered`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
