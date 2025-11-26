@@ -41,8 +41,8 @@ export default function Login() {
       if (isAdminLogin) {
         // Admin login
         await authService.adminLogin({
-          admin_id: formData.username.trim(),
-          admin_key: formData.password.trim(),
+          email: formData.username.trim(),
+          password: formData.password.trim(),
         });
 
         // Navigate to admin dashboard
@@ -120,10 +120,10 @@ export default function Login() {
                   htmlFor="username"
                   className="block text-sm font-light text-gray-600 mb-2 uppercase tracking-wider text-xs"
                 >
-                  {isAdminLogin ? "Caseworker ID" : "Email"}
+                  {isAdminLogin ? "Caseworker Email" : "Email"}
                 </label>
                 <input
-                  type="text"
+                  type="email"
                   id="username"
                   value={formData.username}
                   onChange={(e) =>
@@ -133,7 +133,7 @@ export default function Login() {
                     }))
                   }
                   className="w-full px-4 py-3 border border-gray-300 focus:border-gray-900 transition-colors duration-200 font-light"
-                  placeholder={isAdminLogin ? "Enter caseworker ID" : "Enter your email"}
+                  placeholder={isAdminLogin ? "Enter caseworker email" : "Enter your email"}
                   required
                 />
               </div>
@@ -143,7 +143,7 @@ export default function Login() {
                   htmlFor="password"
                   className="block text-sm font-light text-gray-600 mb-2 uppercase tracking-wider text-xs"
                 >
-                  {isAdminLogin ? "Caseworker Key" : "Password"}
+                  Password
                 </label>
                 <input
                   type="password"
@@ -156,7 +156,7 @@ export default function Login() {
                     }))
                   }
                   className="w-full px-4 py-3 border border-gray-300 focus:border-gray-900 transition-colors duration-200 font-light"
-                  placeholder={isAdminLogin ? "Enter caseworker key" : "Enter your password"}
+                  placeholder="Enter your password"
                   required
                 />
               </div>

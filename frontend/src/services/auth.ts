@@ -16,8 +16,8 @@ export interface SignupCredentials {
 }
 
 export interface AdminLoginCredentials {
-  admin_id: string;
-  admin_key: string;
+  email: string;
+  password: string;
 }
 
 export interface AuthResponse {

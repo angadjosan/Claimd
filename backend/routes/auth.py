@@ -36,9 +36,8 @@ class LoginRequest(BaseModel):
 
 class AdminLoginRequest(BaseModel):
     """Request model for admin login."""
-    admin_id: str = Field(..., description="Admin's unique identifier")
-    admin_key: str = Field(..., description="Admin secret key")
-    email: Optional[str] = Field(None, description="Admin's email address")
+    email: EmailStr = Field(..., description="Admin's email address")
+    password: str = Field(..., description="Admin's password")
 
 
 class TokenResponse(BaseModel):
@@ -218,35 +217,34 @@ async def admin_login(request: AdminLoginRequest):
     """
     Generate a JWT token for an admin user.
     
-    Verifies admin credentials against the admins.json file.
+    Verifies admin credentials (email and password) against the admins.json file.
     """
-    logger.info(f"[AUTH_ADMIN_LOGIN] Admin login request for: {request.admin_id}")
+    logger.info(f"[AUTH_ADMIN_LOGIN] Admin login request for: {request.email}")
     
     # Verify admin credentials using admin_utils
-    admin_info = verify_admin(request.admin_id, request.admin_key)
+    admin_info = verify_admin(request.email, request.password)
     
     if not admin_info:
-        logger.warning(f"[AUTH_ADMIN_LOGIN] Invalid credentials for: {request.admin_id}")
+        logger.warning(f"[AUTH_ADMIN_LOGIN] Invalid credentials for: {request.email}")
         raise HTTPException(
             status_code=401,
-            detail="Invalid admin credentials"
+            detail="Invalid email or password"
         )
     
-    # Use email from request if provided, otherwise from admin_info
-    email = request.email or admin_info.get("email")
+    email = admin_info.get("email")
     
     token = create_admin_token(
-        user_id=request.admin_id,
+        user_id=email,
         email=email,
         name=admin_info.get("name")
     )
     
-    logger.info(f"[AUTH_ADMIN_LOGIN] Admin token generated successfully for: {request.admin_id}")
+    logger.info(f"[AUTH_ADMIN_LOGIN] Admin token generated successfully for: {request.email}")
     
     return TokenResponse(
         access_token=token,
         token_type="bearer",
-        user_id=request.admin_id,
+        user_id=email,
         is_admin=True
     )
 
@@ -281,16 +279,15 @@ async def verify_token(current_user: dict = Depends(get_current_user)):
 
 class AddAdminRequest(BaseModel):
     """Request model for adding a new admin."""
-    admin_id: str = Field(..., description="New admin's unique identifier")
-    admin_key: str = Field(..., description="New admin's secret key")
-    email: str = Field(..., description="New admin's email address")
+    email: EmailStr = Field(..., description="New admin's email address")
+    password: str = Field(..., description="New admin's password")
     name: str = Field(..., description="New admin's display name")
 
 
 @router.get(
     "/api/auth/admins",
     summary="List all admins",
-    description="Get a list of all admins (admin-only endpoint). Does not expose admin keys.",
+    description="Get a list of all admins (admin-only endpoint). Does not expose passwords.",
     responses={
         200: {"description": "Admin list retrieved successfully"},
         403: {"description": "Admin privileges required"},
@@ -298,7 +295,7 @@ class AddAdminRequest(BaseModel):
 )
 async def get_admins(current_user: dict = Depends(get_current_admin)):
     """
-    List all admins without exposing their keys.
+    List all admins without exposing their passwords.
     Requires admin authentication.
     """
     logger.info(f"[AUTH_ADMINS] Admin {current_user.get('user_id')} requesting admin list")
@@ -327,33 +324,32 @@ async def create_admin(request: AddAdminRequest, current_user: dict = Depends(ge
     Add a new admin to the admins.json file.
     Requires admin authentication.
     """
-    logger.info(f"[AUTH_ADD_ADMIN] Admin {current_user.get('user_id')} adding new admin: {request.admin_id}")
+    logger.info(f"[AUTH_ADD_ADMIN] Admin {current_user.get('user_id')} adding new admin: {request.email}")
     
     success = add_admin(
-        admin_id=request.admin_id,
-        admin_key=request.admin_key,
         email=request.email,
+        password=request.password,
         name=request.name
     )
     
     if not success:
-        logger.warning(f"[AUTH_ADD_ADMIN] Failed to add admin (may already exist): {request.admin_id}")
+        logger.warning(f"[AUTH_ADD_ADMIN] Failed to add admin (may already exist): {request.email}")
         raise HTTPException(
             status_code=400,
             detail="Admin ID already exists or failed to add admin"
         )
     
-    logger.info(f"[AUTH_ADD_ADMIN] Successfully added new admin: {request.admin_id}")
+    logger.info(f"[AUTH_ADD_ADMIN] Successfully added new admin: {request.email}")
     
     return {
         "success": True,
         "message": "Admin added successfully",
-        "admin_id": request.admin_id
+        "email": request.email
     }
 
 
 @router.delete(
-    "/api/auth/admins/{admin_id}",
+    "/api/auth/admins/{email}",
     summary="Remove admin",
     description="Remove an admin from the system (admin-only endpoint).",
     responses={
@@ -362,34 +358,34 @@ async def create_admin(request: AddAdminRequest, current_user: dict = Depends(ge
         403: {"description": "Admin privileges required"},
     }
 )
-async def delete_admin(admin_id: str, current_user: dict = Depends(get_current_admin)):
+async def delete_admin(email: str, current_user: dict = Depends(get_current_admin)):
     """
     Remove an admin from the admins.json file.
     Requires admin authentication.
     """
-    logger.info(f"[AUTH_REMOVE_ADMIN] Admin {current_user.get('user_id')} removing admin: {admin_id}")
+    logger.info(f"[AUTH_REMOVE_ADMIN] Admin {current_user.get('user_id')} removing admin: {email}")
     
     # Prevent admin from removing themselves
-    if admin_id == current_user.get("user_id"):
-        logger.warning(f"[AUTH_REMOVE_ADMIN] Admin {admin_id} attempted to remove themselves")
+    if email == current_user.get("user_id"):
+        logger.warning(f"[AUTH_REMOVE_ADMIN] Admin {email} attempted to remove themselves")
         raise HTTPException(
             status_code=400,
             detail="Cannot remove yourself as admin"
         )
     
-    success = remove_admin(admin_id)
+    success = remove_admin(email)
     
     if not success:
-        logger.warning(f"[AUTH_REMOVE_ADMIN] Failed to remove admin (not found): {admin_id}")
+        logger.warning(f"[AUTH_REMOVE_ADMIN] Failed to remove admin (not found): {email}")
         raise HTTPException(
             status_code=404,
             detail="Admin not found"
         )
     
-    logger.info(f"[AUTH_REMOVE_ADMIN] Successfully removed admin: {admin_id}")
+    logger.info(f"[AUTH_REMOVE_ADMIN] Successfully removed admin: {email}")
     
     return {
         "success": True,
         "message": "Admin removed successfully",
-        "admin_id": admin_id
+        "email": email
     }

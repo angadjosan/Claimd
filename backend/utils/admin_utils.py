@@ -22,9 +22,8 @@ def load_admins() -> List[Dict[str, str]]:
             default_admins = {
                 "admins": [
                     {
-                        "admin_id": "admin1",
-                        "admin_key": "admin-secret-change-this",
-                        "email": "admin1@example.com",
+                        "email": "admin@example.com",
+                        "password": "admin-secret-change-this",
                         "name": "Primary Admin"
                     }
                 ]
@@ -41,13 +40,13 @@ def load_admins() -> List[Dict[str, str]]:
         return []
 
 
-def verify_admin(admin_id: str, admin_key: str) -> Optional[Dict[str, str]]:
+def verify_admin(email: str, password: str) -> Optional[Dict[str, str]]:
     """
     Verify admin credentials against the admins list.
     
     Args:
-        admin_id: Admin's unique identifier
-        admin_key: Admin's secret key
+        email: Admin's email address
+        password: Admin's password
         
     Returns:
         Admin info dict if valid, None otherwise
@@ -55,29 +54,28 @@ def verify_admin(admin_id: str, admin_key: str) -> Optional[Dict[str, str]]:
     admins = load_admins()
     
     for admin in admins:
-        if admin.get("admin_id") == admin_id and admin.get("admin_key") == admin_key:
+        if admin.get("email") == email and admin.get("password") == password:
             return admin
     
     return None
 
 
-def get_admin_by_id(admin_id: str) -> Optional[Dict[str, str]]:
+def get_admin_by_email(email: str) -> Optional[Dict[str, str]]:
     """
-    Get admin info by admin_id.
+    Get admin info by email.
     
     Args:
-        admin_id: Admin's unique identifier
+        email: Admin's email address
         
     Returns:
-        Admin info dict (without key) if found, None otherwise
+        Admin info dict (without password) if found, None otherwise
     """
     admins = load_admins()
     
     for admin in admins:
-        if admin.get("admin_id") == admin_id:
-            # Return without exposing the key
+        if admin.get("email") == email:
+            # Return without exposing the password
             return {
-                "admin_id": admin.get("admin_id"),
                 "email": admin.get("email"),
                 "name": admin.get("name")
             }
@@ -85,14 +83,13 @@ def get_admin_by_id(admin_id: str) -> Optional[Dict[str, str]]:
     return None
 
 
-def add_admin(admin_id: str, admin_key: str, email: str, name: str) -> bool:
+def add_admin(email: str, password: str, name: str) -> bool:
     """
     Add a new admin to the admins.json file.
     
     Args:
-        admin_id: Admin's unique identifier
-        admin_key: Admin's secret key
-        email: Admin's email
+        email: Admin's email address
+        password: Admin's password
         name: Admin's name
         
     Returns:
@@ -101,15 +98,14 @@ def add_admin(admin_id: str, admin_key: str, email: str, name: str) -> bool:
     try:
         admins = load_admins()
         
-        # Check if admin_id already exists
-        if any(admin.get("admin_id") == admin_id for admin in admins):
+        # Check if email already exists
+        if any(admin.get("email") == email for admin in admins):
             return False
         
         # Add new admin
         admins.append({
-            "admin_id": admin_id,
-            "admin_key": admin_key,
             "email": email,
+            "password": password,
             "name": name
         })
         
@@ -123,12 +119,12 @@ def add_admin(admin_id: str, admin_key: str, email: str, name: str) -> bool:
         return False
 
 
-def remove_admin(admin_id: str) -> bool:
+def remove_admin(email: str) -> bool:
     """
     Remove an admin from the admins.json file.
     
     Args:
-        admin_id: Admin's unique identifier
+        email: Admin's email address
         
     Returns:
         True if removed successfully, False otherwise
@@ -137,7 +133,7 @@ def remove_admin(admin_id: str) -> bool:
         admins = load_admins()
         
         # Filter out the admin to remove
-        new_admins = [admin for admin in admins if admin.get("admin_id") != admin_id]
+        new_admins = [admin for admin in admins if admin.get("email") != email]
         
         # Check if anything was removed
         if len(new_admins) == len(admins):
@@ -155,15 +151,14 @@ def remove_admin(admin_id: str) -> bool:
 
 def list_admins() -> List[Dict[str, str]]:
     """
-    List all admins (without exposing keys).
+    List all admins (without exposing passwords).
     
     Returns:
-        List of admin info dicts (without keys)
+        List of admin info dicts (without passwords)
     """
     admins = load_admins()
     return [
         {
-            "admin_id": admin.get("admin_id"),
             "email": admin.get("email"),
             "name": admin.get("name")
         }
