@@ -46,4 +46,3 @@ backend/local_storage/pdfs/**/*.pdf
 # Logs
 *.log
 logs/
-PRODUCTION_READINESS.md
