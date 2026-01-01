@@ -28,26 +28,59 @@ export const childSchema = z.object({
 export const directDepositSchema = z.object({
   type: z.enum(['domestic', 'international', 'none']),
   domestic: z.object({
-    account_type: z.string().min(1, "Account type is required"),
-    account_number: z.string().min(1, "Account number is required"),
-    bank_routing_transit_number: z.string().min(1, "Routing number is required"),
-  }).optional(),
+    account_type: z.string().optional(),
+    account_number: z.string().optional(),
+    bank_routing_transit_number: z.string().optional(),
+  }).optional().nullable(),
   international: z.object({
-    country: z.string().min(1, "Country is required"),
-    bank_name: z.string().min(1, "Bank name is required"),
-    bank_code: z.string().min(1, "Bank code is required"),
-    currency: z.string().min(1, "Currency is required"),
-    account_type: z.string().min(1, "Account type is required"),
-    account_number: z.string().min(1, "Account number is required"),
+    country: z.string().optional(),
+    bank_name: z.string().optional(),
+    bank_code: z.string().optional(),
+    currency: z.string().optional(),
+    account_type: z.string().optional(),
+    account_number: z.string().optional(),
     branch_or_transit_number: z.string().optional(),
-  }).optional(),
-}).refine((data) => {
-  if (data.type === 'domestic') return !!data.domestic;
-  if (data.type === 'international') return !!data.international;
-  return true;
-}, {
-  message: "Direct deposit details are required for the selected type",
-  path: ["type"],
+  }).optional().nullable(),
+}).superRefine((data, ctx) => {
+  if (data.type === 'domestic') {
+    if (!data.domestic) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Domestic account details are required", path: ["domestic"] });
+      return;
+    }
+    if (!data.domestic.account_type) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Account type is required", path: ["domestic", "account_type"] });
+    }
+    if (!data.domestic.account_number) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Account number is required", path: ["domestic", "account_number"] });
+    }
+    if (!data.domestic.bank_routing_transit_number) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Routing number is required", path: ["domestic", "bank_routing_transit_number"] });
+    }
+  }
+  if (data.type === 'international') {
+    if (!data.international) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "International account details are required", path: ["international"] });
+      return;
+    }
+    if (!data.international.country) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Country is required", path: ["international", "country"] });
+    }
+    if (!data.international.bank_name) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Bank name is required", path: ["international", "bank_name"] });
+    }
+    if (!data.international.bank_code) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Bank code is required", path: ["international", "bank_code"] });
+    }
+    if (!data.international.currency) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Currency is required", path: ["international", "currency"] });
+    }
+    if (!data.international.account_type) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Account type is required", path: ["international", "account_type"] });
+    }
+    if (!data.international.account_number) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Account number is required", path: ["international", "account_number"] });
+    }
+  }
 });
 
 export const emergencyContactSchema = z.object({

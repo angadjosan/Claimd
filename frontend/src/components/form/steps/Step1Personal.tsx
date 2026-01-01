@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { FormData } from '../../../types/form';
 import { TextField } from '../TextField';
 import { DatePickerField } from '../DatePickerField';
 import { FileUploadField } from '../FileUploadField';
 import { SelectField } from '../SelectField';
+import { Eye, EyeOff } from 'lucide-react';
 
 const COUNTRIES = [
   { value: 'US', label: 'United States' },
@@ -93,6 +94,8 @@ interface StepProps {
 }
 
 export const Step1Personal: React.FC<StepProps> = ({ formData, updateFormData }) => {
+  const [showSSN, setShowSSN] = useState(false);
+
   const formatSSN = (value: string) => {
     // Remove all non-digits
     const digits = value.replace(/\D/g, '');
@@ -148,14 +151,23 @@ export const Step1Personal: React.FC<StepProps> = ({ formData, updateFormData })
           required
         />
         
-        <TextField
-          label="Social Security Number"
-          placeholder="•••-••-••••"
-          value={maskSSN(formData.ssn || '')}
-          onChange={handleSSNChange}
-          maxLength={11}
-          required
-        />
+        <div className="relative">
+          <TextField
+            label="Social Security Number"
+            placeholder="•••-••-••••"
+            value={showSSN ? (formData.ssn || '') : maskSSN(formData.ssn || '')}
+            onChange={handleSSNChange}
+            maxLength={11}
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowSSN(!showSSN)}
+            className="absolute right-3 top-8 text-gray-500 hover:text-gray-700"
+          >
+            {showSSN ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {formData.birthplace != 'united states' && formData.birthplace !== '' && formData.birthplace !== 'US' && (

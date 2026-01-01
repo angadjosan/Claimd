@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { FormData, Spouse } from '../../../types/form';
 import { TextField } from '../TextField';
 import { DatePickerField } from '../DatePickerField';
 import { DynamicArrayField } from '../DynamicArrayField';
+import { Eye, EyeOff } from 'lucide-react';
 
 interface StepProps {
   formData: FormData;
@@ -10,6 +11,11 @@ interface StepProps {
 }
 
 export const Step2Marital: React.FC<StepProps> = ({ formData, updateFormData }) => {
+  const [showSpouseSSN, setShowSpouseSSN] = useState<Record<number, boolean>>({});
+
+  const toggleSpouseSSN = (index: number) => {
+    setShowSpouseSSN(prev => ({ ...prev, [index]: !prev[index] }));
+  };
 
   const addSpouse = () => {
     const newSpouse: Spouse = {
@@ -84,14 +90,23 @@ export const Step2Marital: React.FC<StepProps> = ({ formData, updateFormData }) 
               onChange={(e) => updateSpouse(index, 'spouse_name', e.target.value)}
               required
             />
-            <TextField
-              label="Spouse SSN"
-              placeholder="•••-••-••••"
-              value={maskSSN(spouse.spouse_ssn || '')}
-              onChange={(e) => handleSpouseSSNChange(index, e.target.value)}
-              maxLength={11}
-              required
-            />
+            <div className="relative">
+              <TextField
+                label="Spouse SSN"
+                placeholder="•••-••-••••"
+                value={showSpouseSSN[index] ? (spouse.spouse_ssn || '') : maskSSN(spouse.spouse_ssn || '')}
+                onChange={(e) => handleSpouseSSNChange(index, e.target.value)}
+                maxLength={11}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => toggleSpouseSSN(index)}
+                className="absolute right-3 top-8 text-gray-500 hover:text-gray-700"
+              >
+                {showSpouseSSN[index] ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
             <DatePickerField
               label="Marriage Start Date"
               value={spouse.marriage_start_date}

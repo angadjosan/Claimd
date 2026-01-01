@@ -2,7 +2,6 @@ import React from 'react';
 import type { FormData, Child } from '../../../types/form';
 import { TextField } from '../TextField';
 import { DatePickerField } from '../DatePickerField';
-import { CheckboxField } from '../CheckboxField';
 import { DynamicArrayField } from '../DynamicArrayField';
 
 interface StepProps {
@@ -36,18 +35,6 @@ export const Step3Children: React.FC<StepProps> = ({ formData, updateFormData })
     updateFormData({ children: newChildren });
   };
 
-  const updateChildStatus = (index: number, field: keyof Child['child_status'], value: boolean) => {
-    const newChildren = [...formData.children];
-    newChildren[index] = {
-      ...newChildren[index],
-      child_status: {
-        ...newChildren[index].child_status,
-        [field]: value
-      }
-    };
-    updateFormData({ children: newChildren });
-  };
-
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold text-gray-900">Children</h2>
@@ -76,24 +63,6 @@ export const Step3Children: React.FC<StepProps> = ({ formData, updateFormData })
                 value={child.child_date_of_birth}
                 onChange={(e) => updateChild(index, 'child_date_of_birth', e.target.value)}
                 required
-              />
-            </div>
-            <div className="bg-white p-3 rounded border border-gray-200">
-              <p className="text-sm font-medium text-gray-700 mb-2">Child Status (Check all that apply)</p>
-              <CheckboxField
-                label="Disabled before age 22"
-                checked={child.child_status.disabled_before_22}
-                onChange={(e) => updateChildStatus(index, 'disabled_before_22', e.target.checked)}
-              />
-              <CheckboxField
-                label="Under 18 and unmarried"
-                checked={child.child_status.under_18_unmarried}
-                onChange={(e) => updateChildStatus(index, 'under_18_unmarried', e.target.checked)}
-              />
-              <CheckboxField
-                label="Age 18-19 and in secondary school full time"
-                checked={child.child_status.age_18_to_19_in_secondary_school_full_time}
-                onChange={(e) => updateChildStatus(index, 'age_18_to_19_in_secondary_school_full_time', e.target.checked)}
               />
             </div>
           </div>

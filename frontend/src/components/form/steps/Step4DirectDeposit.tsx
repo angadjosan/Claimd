@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { FormData, DirectDeposit } from '../../../types/form';
 import { TextField } from '../TextField';
 import { SelectField } from '../SelectField';
+import { Eye, EyeOff } from 'lucide-react';
 
 interface StepProps {
   formData: FormData;
@@ -9,6 +10,41 @@ interface StepProps {
 }
 
 export const Step4DirectDeposit: React.FC<StepProps> = ({ formData, updateFormData }) => {
+  const [showAccountNumber, setShowAccountNumber] = useState(false);
+  const [showRoutingNumber, setShowRoutingNumber] = useState(false);
+
+  // Mask function - replace digits with bullets
+  const maskValue = (value: string) => {
+    return value.replace(/\d/g, '•');
+  };
+
+  // Handle masked field change
+  const handleMaskedDomesticChange = (field: string, currentValue: string, input: string) => {
+    const currentDigits = (currentValue || '').replace(/\D/g, '');
+    const inputWithoutBullets = input.replace(/•/g, '');
+    const newDigits = inputWithoutBullets.replace(/\D/g, '');
+    
+    let newValue: string;
+    if (input.length < maskValue(currentValue || '').length) {
+      // User is deleting
+      newValue = currentDigits.slice(0, -1);
+    } else {
+      // User is adding
+      const addedDigit = newDigits.slice(-1);
+      newValue = currentDigits + addedDigit;
+    }
+    
+    updateFormData({
+      direct_deposit: {
+        ...formData.direct_deposit,
+        domestic: {
+          ...formData.direct_deposit.domestic,
+          [field]: newValue
+        } as any
+      }
+    });
+  };
+
   const updateDirectDeposit = (field: keyof DirectDeposit, value: any) => {
     updateFormData({
       direct_deposit: {
@@ -73,18 +109,36 @@ export const Step4DirectDeposit: React.FC<StepProps> = ({ formData, updateFormDa
             ]}
             required
           />
-          <TextField
-            label="Account Number"
-            value={formData.direct_deposit.domestic?.account_number || ''}
-            onChange={(e) => updateDomestic('account_number', e.target.value)}
-            required
-          />
-          <TextField
-            label="Routing Number"
-            value={formData.direct_deposit.domestic?.bank_routing_transit_number || ''}
-            onChange={(e) => updateDomestic('bank_routing_transit_number', e.target.value)}
-            required
-          />
+          <div className="relative">
+            <TextField
+              label="Account Number"
+              value={showAccountNumber ? (formData.direct_deposit.domestic?.account_number || '') : maskValue(formData.direct_deposit.domestic?.account_number || '')}
+              onChange={(e) => handleMaskedDomesticChange('account_number', formData.direct_deposit.domestic?.account_number || '', e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowAccountNumber(!showAccountNumber)}
+              className="absolute right-3 top-8 text-gray-500 hover:text-gray-700"
+            >
+              {showAccountNumber ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
+          </div>
+          <div className="relative">
+            <TextField
+              label="Routing Number"
+              value={showRoutingNumber ? (formData.direct_deposit.domestic?.bank_routing_transit_number || '') : maskValue(formData.direct_deposit.domestic?.bank_routing_transit_number || '')}
+              onChange={(e) => handleMaskedDomesticChange('bank_routing_transit_number', formData.direct_deposit.domestic?.bank_routing_transit_number || '', e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowRoutingNumber(!showRoutingNumber)}
+              className="absolute right-3 top-8 text-gray-500 hover:text-gray-700"
+            >
+              {showRoutingNumber ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
       )}
 
