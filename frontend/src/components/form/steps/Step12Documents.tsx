@@ -71,11 +71,13 @@ export const Step12Documents: React.FC<StepProps> = ({ formData, updateFormData 
           label="Social Security Statement"
           value={formData.social_security_statement}
           onChange={(file) => updateFormData({ social_security_statement: file })}
+          required
         />
         <FileUploadField
           label="Birth Certificate"
           value={formData.birth_certificate}
           onChange={(file) => updateFormData({ birth_certificate: file })}
+          required
         />
         <FileUploadField
           label="Citizenship Proof (if not US born)"
@@ -102,11 +104,14 @@ export const Step12Documents: React.FC<StepProps> = ({ formData, updateFormData 
               label="Year"
               value={w2.year}
               onChange={(e) => updateW2(index, 'year', e.target.value)}
+              placeholder="e.g., 2024"
+              required
             />
             <FileUploadField
               label="Upload W2"
               value={w2.file}
               onChange={(file) => updateW2(index, 'file', file)}
+              required
             />
           </div>
         )}
@@ -125,11 +130,14 @@ export const Step12Documents: React.FC<StepProps> = ({ formData, updateFormData 
               label="Year"
               value={tax.year}
               onChange={(e) => updateTaxReturn(index, 'year', e.target.value)}
+              placeholder="e.g., 2024"
+              required
             />
             <FileUploadField
               label="Upload Tax Return"
               value={tax.file}
               onChange={(file) => updateTaxReturn(index, 'file', file)}
+              required
             />
           </div>
         )}
@@ -149,17 +157,20 @@ export const Step12Documents: React.FC<StepProps> = ({ formData, updateFormData 
                 label="Type"
                 value={proof.type}
                 onChange={(e) => updateWorkersComp(index, 'type', e.target.value)}
+                required
               />
               <TextField
                 label="Description"
                 value={proof.description}
                 onChange={(e) => updateWorkersComp(index, 'description', e.target.value)}
+                required
               />
             </div>
             <FileUploadField
               label="Upload Proof"
               value={proof.file}
               onChange={(file) => updateWorkersComp(index, 'file', file)}
+              required
             />
           </div>
         )}

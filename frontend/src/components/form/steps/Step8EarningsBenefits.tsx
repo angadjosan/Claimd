@@ -32,8 +32,8 @@ export const Step8EarningsBenefits: React.FC<StepProps> = ({ formData, updateFor
   const addBenefit = () => {
     const newBenefit: DisabilityBenefit = {
       type: '',
-      status: 'filed',
-      payment_type: 'temporary',
+      status: '' as any,
+      payment_type: '' as any,
       payer: ''
     };
     updateFormData({ disability_benefits: [...formData.disability_benefits, newBenefit] });
@@ -68,11 +68,15 @@ export const Step8EarningsBenefits: React.FC<StepProps> = ({ formData, updateFor
               label="Year"
               value={earning.year}
               onChange={(e) => updateEarnings(index, 'year', e.target.value)}
+              placeholder="e.g., 2024"
+              required
             />
             <TextField
               label="Total Earnings"
               value={earning.total_earnings}
               onChange={(e) => updateEarnings(index, 'total_earnings', e.target.value)}
+              placeholder="e.g., $50,000"
+              required
             />
           </div>
         )}
@@ -91,20 +95,24 @@ export const Step8EarningsBenefits: React.FC<StepProps> = ({ formData, updateFor
               label="Type"
               value={benefit.type}
               onChange={(e) => updateBenefit(index, 'type', e.target.value)}
+              placeholder="e.g., Workers Comp, VA Disability"
+              required
             />
             <SelectField
               label="Status"
-              value={benefit.status}
+              value={benefit.status || ''}
               onChange={(e) => updateBenefit(index, 'status', e.target.value)}
               options={[
                 { value: 'filed', label: 'Filed' },
                 { value: 'received', label: 'Received' },
                 { value: 'intend_to_file', label: 'Intend to File' }
               ]}
+              placeholder="Select status"
+              required
             />
             <SelectField
               label="Payment Type"
-              value={benefit.payment_type}
+              value={benefit.payment_type || ''}
               onChange={(e) => updateBenefit(index, 'payment_type', e.target.value)}
               options={[
                 { value: 'temporary', label: 'Temporary' },
@@ -112,11 +120,15 @@ export const Step8EarningsBenefits: React.FC<StepProps> = ({ formData, updateFor
                 { value: 'annuity', label: 'Annuity' },
                 { value: 'lump_sum', label: 'Lump Sum' }
               ]}
+              placeholder="Select payment type"
+              required
             />
             <TextField
               label="Payer"
               value={benefit.payer}
               onChange={(e) => updateBenefit(index, 'payer', e.target.value)}
+              placeholder="e.g., State of California"
+              required
             />
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">

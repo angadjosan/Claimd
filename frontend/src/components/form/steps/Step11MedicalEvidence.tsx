@@ -14,7 +14,7 @@ export const Step11MedicalEvidence: React.FC<StepProps> = ({ formData, updateFor
   // Evidence Documents Handlers
   const addDocument = () => {
     const newDoc: EvidenceDocument = {
-      document_type: 'medical_records',
+      document_type: '' as any,
       description: '',
       file: null
     };
@@ -70,7 +70,7 @@ export const Step11MedicalEvidence: React.FC<StepProps> = ({ formData, updateFor
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <SelectField
                 label="Document Type"
-                value={doc.document_type}
+                value={doc.document_type || ''}
                 onChange={(e) => updateDocument(index, 'document_type', e.target.value)}
                 options={[
                   { value: 'medical_records', label: 'Medical Records' },
@@ -78,17 +78,21 @@ export const Step11MedicalEvidence: React.FC<StepProps> = ({ formData, updateFor
                   { value: 'test_results', label: 'Test Results' },
                   { value: 'other', label: 'Other' }
                 ]}
+                placeholder="Select document type"
+                required
               />
               <TextField
                 label="Description"
                 value={doc.description}
                 onChange={(e) => updateDocument(index, 'description', e.target.value)}
+                required
               />
             </div>
             <FileUploadField
               label="Upload File"
               value={doc.file}
               onChange={(file) => updateDocument(index, 'file', file)}
+              required
             />
           </div>
         )}
@@ -108,11 +112,13 @@ export const Step11MedicalEvidence: React.FC<StepProps> = ({ formData, updateFor
               value={source.type}
               onChange={(e) => updateSource(index, 'type', e.target.value)}
               placeholder="e.g., School Records, Social Services"
+              required
             />
             <TextField
               label="Name or Description"
               value={source.name_or_description}
               onChange={(e) => updateSource(index, 'name_or_description', e.target.value)}
+              required
             />
             <div className="md:col-span-2">
               <TextField

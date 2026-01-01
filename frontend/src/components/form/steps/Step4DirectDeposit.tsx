@@ -87,13 +87,14 @@ export const Step4DirectDeposit: React.FC<StepProps> = ({ formData, updateFormDa
 
       <SelectField
         label="Deposit Type"
-        value={formData.direct_deposit.type}
+        value={formData.direct_deposit.type || ''}
         onChange={(e) => updateDirectDeposit('type', e.target.value)}
         options={[
-          { value: 'none', label: 'None' },
-          { value: 'domestic', label: 'Domestic (US)' },
-          { value: 'international', label: 'International' }
+          { value: 'none', label: 'None (check by mail)' },
+          { value: 'domestic', label: 'Domestic (US Bank)' },
+          { value: 'international', label: 'International Bank' }
         ]}
+        placeholder="Select deposit type"
         required
       />
 
@@ -107,6 +108,7 @@ export const Step4DirectDeposit: React.FC<StepProps> = ({ formData, updateFormDa
               { value: 'checking', label: 'Checking' },
               { value: 'savings', label: 'Savings' }
             ]}
+            placeholder="Select account type"
             required
           />
           <div className="relative">
@@ -184,7 +186,6 @@ export const Step4DirectDeposit: React.FC<StepProps> = ({ formData, updateFormDa
             label="Branch/Transit Number (Optional)"
             value={formData.direct_deposit.international?.branch_or_transit_number || ''}
             onChange={(e) => updateInternational('branch_or_transit_number', e.target.value)}
-            required
           />
         </div>
       )}

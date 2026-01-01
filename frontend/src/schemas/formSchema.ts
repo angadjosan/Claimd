@@ -26,7 +26,7 @@ export const childSchema = z.object({
 });
 
 export const directDepositSchema = z.object({
-  type: z.enum(['domestic', 'international', 'none']),
+  type: z.string().min(1, "Deposit type is required"),
   domestic: z.object({
     account_type: z.string().optional(),
     account_number: z.string().optional(),
@@ -42,6 +42,10 @@ export const directDepositSchema = z.object({
     branch_or_transit_number: z.string().optional(),
   }).optional().nullable(),
 }).superRefine((data, ctx) => {
+  if (!['domestic', 'international', 'none'].includes(data.type)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please select a deposit type", path: ["type"] });
+    return;
+  }
   if (data.type === 'domestic') {
     if (!data.domestic) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Domestic account details are required", path: ["domestic"] });
@@ -91,7 +95,7 @@ export const emergencyContactSchema = z.object({
     city: z.string().min(1, "City is required"),
     state: z.string().min(1, "State is required"),
     zip: z.string().min(1, "Zip is required"),
-    country: z.string().optional(),
+    country: z.string().min(1, "Country is required"),
   }),
   phone_number: z.string().min(1, "Phone number is required"),
   notes: z.string().optional(),

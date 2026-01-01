@@ -219,10 +219,10 @@ export const initialFormData: FormData = {
   permanent_resident_card: null,
   spouses: [],
   children: [],
-  direct_deposit: { type: 'none' },
+  direct_deposit: { type: '' as any },
   contact_who_knows_your_condition: {
     contact_name: '',
-    address: { street: '', city: '', state: '', zip: '' },
+    address: { street: '', city: '', state: '', zip: '', country: '' },
     phone_number: ''
   },
   date_condition_began_affecting_work_ability: '',

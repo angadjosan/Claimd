@@ -147,7 +147,7 @@ export const Step1Personal: React.FC<StepProps> = ({ formData, updateFormData })
           options={COUNTRIES}
           value={formData.birthplace}
           onChange={(e) => updateFormData({ birthplace: e.target.value })}
-          placeholder="Select your country"
+          placeholder="Select country of birth"
           required
         />
         

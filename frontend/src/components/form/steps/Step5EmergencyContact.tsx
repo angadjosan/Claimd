@@ -203,19 +203,21 @@ export const Step5EmergencyContact: React.FC<StepProps> = ({ formData, updateFor
           options={countryOptions}
           value={formData.contact_who_knows_your_condition.address.country || ''}
           onChange={(e) => updateAddress('country', e.target.value)}
+          placeholder="Select country"
           required
         />
         {formData.contact_who_knows_your_condition.address.country === 'US' ? (
           <SelectField
-            label="State/Region"
+            label="State"
             options={stateOptions}
             value={formData.contact_who_knows_your_condition.address.state}
             onChange={(e) => updateAddress('state', e.target.value)}
+            placeholder="Select state"
             required
           />
         ) : (
           <TextField
-            label="State/Region"
+            label="State/Province/Region"
             value={formData.contact_who_knows_your_condition.address.state}
             onChange={(e) => updateAddress('state', e.target.value)}
             required

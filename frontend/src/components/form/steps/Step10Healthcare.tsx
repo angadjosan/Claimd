@@ -62,7 +62,7 @@ export const Step10Healthcare: React.FC<StepProps> = ({ formData, updateFormData
   const addMedication = () => {
     const newMed: Medication = {
       medication_name: '',
-      type: 'prescription',
+      type: '' as any,
       reason: '',
       prescribed_by: ''
     };
@@ -98,21 +98,25 @@ export const Step10Healthcare: React.FC<StepProps> = ({ formData, updateFormData
               label="Name"
               value={provider.name}
               onChange={(e) => updateProvider(index, 'name', e.target.value)}
+              required
             />
             <TextField
               label="Address"
               value={provider.address}
               onChange={(e) => updateProvider(index, 'address', e.target.value)}
+              required
             />
             <TextField
               label="Phone Number"
               value={provider.phone_number}
               onChange={(e) => updateProvider(index, 'phone_number', e.target.value)}
+              required
             />
             <TextField
               label="Patient ID Number"
               value={provider.patient_id_number}
               onChange={(e) => updateProvider(index, 'patient_id_number', e.target.value)}
+              required
             />
             <div className="md:col-span-2">
               <TextField
@@ -120,6 +124,7 @@ export const Step10Healthcare: React.FC<StepProps> = ({ formData, updateFormData
                 value={provider.dates_of_exams_and_treatments}
                 onChange={(e) => updateProvider(index, 'dates_of_exams_and_treatments', e.target.value)}
                 placeholder="e.g., Jan 2023 - Present"
+                required
               />
             </div>
           </div>
@@ -139,26 +144,30 @@ export const Step10Healthcare: React.FC<StepProps> = ({ formData, updateFormData
               label="Test Name"
               value={test.test_name}
               onChange={(e) => updateTest(index, 'test_name', e.target.value)}
+              required
             />
             <DatePickerField
               label="Test Date"
               value={test.test_date}
               onChange={(e) => updateTest(index, 'test_date', e.target.value)}
+              required
             />
             <TextField
               label="Ordered By"
               value={test.ordered_by}
               onChange={(e) => updateTest(index, 'ordered_by', e.target.value)}
+              required
             />
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Results Summary
+                Results Summary <span className="text-red-500">*</span>
               </label>
               <textarea
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 rows={2}
                 value={test.results_summary}
                 onChange={(e) => updateTest(index, 'results_summary', e.target.value)}
+                required
               />
             </div>
           </div>
@@ -178,25 +187,30 @@ export const Step10Healthcare: React.FC<StepProps> = ({ formData, updateFormData
               label="Medication Name"
               value={med.medication_name}
               onChange={(e) => updateMedication(index, 'medication_name', e.target.value)}
+              required
             />
             <SelectField
               label="Type"
-              value={med.type}
+              value={med.type || ''}
               onChange={(e) => updateMedication(index, 'type', e.target.value)}
               options={[
                 { value: 'prescription', label: 'Prescription' },
-                { value: 'non-prescription', label: 'Non-Prescription' }
+                { value: 'non-prescription', label: 'Non-Prescription (OTC)' }
               ]}
+              placeholder="Select type"
+              required
             />
             <TextField
               label="Reason"
               value={med.reason}
               onChange={(e) => updateMedication(index, 'reason', e.target.value)}
+              required
             />
             <TextField
               label="Prescribed By"
               value={med.prescribed_by}
               onChange={(e) => updateMedication(index, 'prescribed_by', e.target.value)}
+              required
             />
           </div>
         )}

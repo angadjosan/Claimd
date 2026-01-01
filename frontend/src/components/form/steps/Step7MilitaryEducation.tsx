@@ -113,21 +113,25 @@ export const Step7MilitaryEducation: React.FC<StepProps> = ({ formData, updateFo
                   label="Branch"
                   value={record.branch}
                   onChange={(e) => updateServiceRecord(index, 'branch', e.target.value)}
+                  required
                 />
                 <TextField
                   label="Type of Duty"
                   value={record.type_of_duty}
                   onChange={(e) => updateServiceRecord(index, 'type_of_duty', e.target.value)}
+                  required
                 />
                 <DatePickerField
                   label="Start Date"
                   value={record.service_start_date}
                   onChange={(e) => updateServiceRecord(index, 'service_start_date', e.target.value)}
+                  required
                 />
                 <DatePickerField
                   label="End Date"
                   value={record.service_end_date}
                   onChange={(e) => updateServiceRecord(index, 'service_end_date', e.target.value)}
+                  required
                 />
               </div>
             )}
@@ -148,11 +152,14 @@ export const Step7MilitaryEducation: React.FC<StepProps> = ({ formData, updateFo
               label="Level"
               value={edu.level}
               onChange={(e) => updateEducation(index, 'level', e.target.value)}
+              placeholder="e.g., High School, Bachelor's, Master's"
+              required
             />
             <DatePickerField
               label="Date Completed"
               value={edu.date_completed}
               onChange={(e) => updateEducation(index, 'date_completed', e.target.value)}
+              required
             />
           </div>
         )}
@@ -171,16 +178,19 @@ export const Step7MilitaryEducation: React.FC<StepProps> = ({ formData, updateFo
               label="School Name"
               value={spec.school_name}
               onChange={(e) => updateSpecialEducation(index, 'school_name', e.target.value)}
+              required
             />
             <TextField
               label="City"
               value={spec.city}
               onChange={(e) => updateSpecialEducation(index, 'city', e.target.value)}
+              required
             />
             <TextField
               label="State"
               value={spec.state}
               onChange={(e) => updateSpecialEducation(index, 'state', e.target.value)}
+              required
             />
           </div>
         )}
@@ -199,11 +209,13 @@ export const Step7MilitaryEducation: React.FC<StepProps> = ({ formData, updateFo
               label="Program Name"
               value={train.program_name}
               onChange={(e) => updateJobTraining(index, 'program_name', e.target.value)}
+              required
             />
             <DatePickerField
               label="Date Completed"
               value={train.date_completed}
               onChange={(e) => updateJobTraining(index, 'date_completed', e.target.value)}
+              required
             />
           </div>
         )}
