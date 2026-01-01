@@ -1,0 +1,217 @@
+{
+  "your-info": {
+    "birthdate": "",
+    "birthplace": "",
+    "permanent_resident_card": "PHOTO (only if non US resident)",
+    "ssn": "",
+    "spouses": 
+      [
+        {
+          "spouse_name": "(current will come first, prior will be there only if marriage lasted more than 10 years or ended in death)",
+          "spouse_ssn": "",
+          "spouse_birthdate": "",
+          "marriage_start_date": "",
+          "marriage_end_date": "optional (prior will have it, current won't)",
+          "marriage_place_city": "",
+          "marriage_place_state_or_country": ""
+        }
+      ],
+    "children": 
+      [
+        {
+          "child_name": "",
+          "child_date_of_birth": "",
+          "child_status": {
+            "disabled_before_22": false,
+            "under_18_unmarried": false,
+            "age_18_to_19_in_secondary_school_full_time": false
+          }
+        }
+      ],
+    "direct_deposit": {
+      "type": "domestic|international|none",
+      "domestic": {
+        "account_type": "only present if type is domestic",
+        "account_number": "",
+        "bank_routing_transit_number": ""
+      },
+      "international": {
+        "country": "only present if type is international",
+        "bank_name": "",
+        "bank_code": "",
+        "currency": "",
+        "account_type": "",
+        "account_number": "",
+        "branch_or_transit_number": "optional"
+      }
+    },
+    "contact_who_knows_your_condition": {
+      "contact_name": "",
+      "relationship": "optional",
+      "address": {
+        "street": "",
+        "city": "",
+        "state": "",
+        "zip": "",
+        "country": "optional"
+      },
+      "phone_number": "",
+      "notes": "optional"
+    },
+  },
+  "employment": {
+    "earnings_history": [
+      {
+        "year": "",
+        "total_earnings": 0
+      }
+    ],
+    "date_condition_began_affecting_work_ability": "",
+    "military_service": {
+      "served_in_us_military": false,
+      "service_records": 
+      [
+        {
+          "branch": "",
+          "type_of_duty": "",
+          "service_start_date": "",
+          "service_end_date": ""
+        }
+      ]
+    },
+    "employment_history": {
+      "non_self_employment": 
+        [ // SORTED
+          {
+            "job_title": "",
+            "employer_name": "",
+            "employment_start_date": "",
+            "employment_end_date": "optional (most recent wont have it)",
+            "total_earnings": "wages, tips, etc. annual earnings",
+            "job_duties_summary": "",
+            "employer_address": ""
+          }
+        ],
+      "self_employment":  
+        [ // SORTED
+          {
+            "business_type": "",
+            "net_income_total": "",
+            "tax_year": ""
+          }
+        ]
+    },
+    "education": [ // SORTED
+      {
+        "level": "",
+        "date_completed": ""
+      }
+    ],
+    "special_education": [
+      {
+        "school_name": "",
+        "city": "",
+        "state": ""
+      }
+    ],
+    "job_training": [
+      {
+        "program_name": "",
+        "date_completed": ""
+      }
+    ],
+    "disability_benefits_filed_or_received": [
+      {
+        "type": "workers_compensation|black_lung|longshore_harbor_workers_comp|civil_service_disability_retirement|federal_employees_retirement|federal_employees_compensation|state_local_disability_insurance|military_disability|other",
+        "status": "filed|received|intend_to_file",
+        "payment_type": "temporary|permanent|annuity|lump_sum",
+        "payer": "employer|employer_insurance|private_agency|federal_government|state_government|local_government|other",
+        "details": "optional"
+      }
+    ]
+  },
+  "medical": {
+    "conditions": [
+      {
+        "condition_name": "",
+        "date_began": "",
+        "how_it_limits_activities": "",
+        "treatment_received": ""
+      }
+    ],
+    "functional_limitations": {
+      "walking": "",
+      "sitting": "",
+      "standing": "",
+      "lifting": "",
+      "carrying": "",
+      "understanding_instructions": "",
+      "remembering_instructions": "",
+      "other": ""
+    },
+    "healthcare_providers": [
+      {
+        "name": "",
+        "address": "",
+        "phone_number": "",
+        "patient_id_number": "optional",
+        "dates_of_exams_and_treatments": ""
+      }
+    ],
+    "tests": [
+      {
+        "test_name": "",
+        "test_date": "",
+        "ordered_by": "",
+        "results_summary": ""
+      }
+    ],
+    "medications": [
+      {
+        "medication_name": "",
+        "type": "prescription|non_prescription",
+        "reason": "",
+        "prescribed_by": ""
+      }
+    ],
+    "evidence_documents": [
+      {
+        "document_type": "medical_records|doctors_report|test_results|other",
+        "description": "",
+        "file": "PDF or image"
+      }
+    ],
+    "other_record_sources": [
+      {
+        "type": "vocational_rehabilitation|public_welfare|prison_or_jail|attorney|other",
+        "name_or_description": "",
+        "contact_info": "optional - address, phone, case number if applicable"
+      }
+    ]
+  },
+  "documents": {
+    "social_security_statement": "PDF",
+    "birth_certificate": "PDF or image - proof of birth",
+    "citizenship_proof": "PDF or image - only if not born in US (passport, naturalization certificate, permanent resident card, etc.)",
+    "military_discharge_papers": "PDF or image - DD-214 or equivalent, only if served before 1968",
+    "w2_forms": [
+      {
+        "year": "",
+        "file": "PDF or image"
+      }
+    ],
+    "self_employment_tax_returns": [
+      {
+        "year": "",
+        "file": "PDF"
+      }
+    ],
+    "workers_comp_proof": [
+      {
+        "type": "award_letter|pay_stub|settlement_agreement|other",
+        "description": "",
+        "file": "PDF or image"
+      }
+    ]
+  }
+}
