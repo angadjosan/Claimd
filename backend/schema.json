@@ -57,7 +57,7 @@
       },
       "phone_number": "",
       "notes": "optional"
-    },
+    }
   },
   "employment": {
     "earnings_history": [
@@ -81,7 +81,7 @@
     },
     "employment_history": {
       "non_self_employment": 
-        [ // SORTED
+        [ 
           {
             "job_title": "",
             "employer_name": "",
@@ -93,7 +93,7 @@
           }
         ],
       "self_employment":  
-        [ // SORTED
+        [
           {
             "business_type": "",
             "net_income_total": "",
@@ -101,7 +101,7 @@
           }
         ]
     },
-    "education": [ // SORTED
+    "education": [ 
       {
         "level": "",
         "date_completed": ""
