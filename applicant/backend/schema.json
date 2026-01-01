@@ -2,13 +2,14 @@
   "your-info": {
     "birthdate": "",
     "birthplace": "",
-    "permanent_resident_card": "PHOTO (only if non US resident)",
-    "ssn": "",
+    "permanent_resident_card": "PHOTO (only if non US resident) - DB: stored in application_files table, referenced by permanent_resident_card_file_id",
+    "ssn": "SECURITY: Hashed using SHA-256 with pepper via hash_ssn() function. Original NEVER stored. DB column: ssn_hash",
     "spouses": 
       [
         {
-          "spouse_name": "(current will come first, prior will be there only if marriage lasted more than 10 years or ended in death)",
-          "spouse_ssn": "",
+          "_note": "Current spouse comes first. Prior spouses only included if marriage > 10 years or ended in death. DB: stored as JSONB array",
+          "spouse_name": "",
+          "spouse_ssn": "SECURITY: Hashed like primary SSN. Store as spouse_ssn_hash in JSONB",
           "spouse_birthdate": "",
           "marriage_start_date": "",
           "marriage_end_date": "optional (prior will have it, current won't)",
@@ -19,6 +20,7 @@
     "children": 
       [
         {
+          "_note": "DB: stored as JSONB array in applications.children column",
           "child_name": "",
           "child_date_of_birth": "",
           "child_status": {
@@ -29,10 +31,11 @@
         }
       ],
     "direct_deposit": {
+      "_note": "DB: type stored in direct_deposit_type enum column. Details in direct_deposit_domestic or direct_deposit_international JSONB columns",
       "type": "domestic|international|none",
       "domestic": {
-        "account_type": "only present if type is domestic",
-        "account_number": "",
+        "account_type": "only present if type is domestic - DB enum: checking|savings",
+        "account_number": "SECURITY: Should be encrypted at application layer before storing",
         "bank_routing_transit_number": ""
       },
       "international": {
@@ -41,11 +44,12 @@
         "bank_code": "",
         "currency": "",
         "account_type": "",
-        "account_number": "",
+        "account_number": "SECURITY: Should be encrypted at application layer before storing",
         "branch_or_transit_number": "optional"
       }
     },
     "contact_who_knows_your_condition": {
+      "_note": "DB: stored as JSONB in applications.emergency_contact column",
       "contact_name": "",
       "relationship": "optional",
       "address": {
@@ -60,14 +64,17 @@
     }
   },
   "employment": {
+    "_note": "All employment data stored as JSONB columns in applications table",
     "earnings_history": [
       {
+        "_note": "DB: stored in applications.earnings_history JSONB array",
         "year": "",
         "total_earnings": 0
       }
     ],
-    "date_condition_began_affecting_work_ability": "",
+    "date_condition_began_affecting_work_ability": "DB: stored as DATE in applications.date_condition_began_affecting_work",
     "military_service": {
+      "_note": "DB: served_in_us_military is BOOLEAN column, service_records is JSONB array",
       "served_in_us_military": false,
       "service_records": 
       [
@@ -80,6 +87,7 @@
       ]
     },
     "employment_history": {
+      "_note": "DB: non_self_employment stored in applications.employment_history JSONB, self_employment in applications.self_employment_history JSONB",
       "non_self_employment": 
         [ 
           {
@@ -103,12 +111,14 @@
     },
     "education": [ 
       {
+        "_note": "DB: stored in applications.education JSONB array",
         "level": "",
         "date_completed": ""
       }
     ],
     "special_education": [
       {
+        "_note": "DB: stored in applications.special_education JSONB array",
         "school_name": "",
         "city": "",
         "state": ""
@@ -116,12 +126,14 @@
     ],
     "job_training": [
       {
+        "_note": "DB: stored in applications.job_training JSONB array",
         "program_name": "",
         "date_completed": ""
       }
     ],
     "disability_benefits_filed_or_received": [
       {
+        "_note": "DB: stored in applications.disability_benefits JSONB array. Type, status, payment_type, payer are DB enums",
         "type": "workers_compensation|black_lung|longshore_harbor_workers_comp|civil_service_disability_retirement|federal_employees_retirement|federal_employees_compensation|state_local_disability_insurance|military_disability|other",
         "status": "filed|received|intend_to_file",
         "payment_type": "temporary|permanent|annuity|lump_sum",
@@ -131,8 +143,10 @@
     ]
   },
   "medical": {
+    "_note": "All medical data stored as JSONB columns in applications table",
     "conditions": [
       {
+        "_note": "DB: stored in applications.conditions JSONB array with GIN index for searching",
         "condition_name": "",
         "date_began": "",
         "how_it_limits_activities": "",
@@ -140,6 +154,7 @@
       }
     ],
     "functional_limitations": {
+      "_note": "DB: stored in applications.functional_limitations JSONB object",
       "walking": "",
       "sitting": "",
       "standing": "",
@@ -151,6 +166,7 @@
     },
     "healthcare_providers": [
       {
+        "_note": "DB: stored in applications.healthcare_providers JSONB array",
         "name": "",
         "address": "",
         "phone_number": "",
@@ -160,6 +176,7 @@
     ],
     "tests": [
       {
+        "_note": "DB: stored in applications.medical_tests JSONB array",
         "test_name": "",
         "test_date": "",
         "ordered_by": "",
@@ -168,6 +185,7 @@
     ],
     "medications": [
       {
+        "_note": "DB: stored in applications.medications JSONB array. Type is DB enum: prescription|non_prescription",
         "medication_name": "",
         "type": "prescription|non_prescription",
         "reason": "",
@@ -176,13 +194,15 @@
     ],
     "evidence_documents": [
       {
+        "_note": "DB: stored in applications.evidence_documents JSONB array with file_id references to application_files table. Document_type is DB enum",
         "document_type": "medical_records|doctors_report|test_results|other",
         "description": "",
-        "file": "PDF or image"
+        "file": "PDF or image - DB: reference to application_files.id UUID"
       }
     ],
     "other_record_sources": [
       {
+        "_note": "DB: stored in applications.other_record_sources JSONB array. Type is DB enum",
         "type": "vocational_rehabilitation|public_welfare|prison_or_jail|attorney|other",
         "name_or_description": "",
         "contact_info": "optional - address, phone, case number if applicable"
@@ -190,27 +210,31 @@
     ]
   },
   "documents": {
-    "social_security_statement": "PDF",
-    "birth_certificate": "PDF or image - proof of birth",
-    "citizenship_proof": "PDF or image - only if not born in US (passport, naturalization certificate, permanent resident card, etc.)",
-    "military_discharge_papers": "PDF or image - DD-214 or equivalent, only if served before 1968",
+    "_note": "All document files stored in Supabase Storage bucket 'application-files'. Metadata tracked in application_files table. References stored as UUIDs in applications table",
+    "social_security_statement": "PDF - DB: applications.social_security_statement_file_id UUID references application_files.id",
+    "birth_certificate": "PDF or image - proof of birth - DB: applications.birth_certificate_file_id UUID",
+    "citizenship_proof": "PDF or image - only if not born in US (passport, naturalization certificate, permanent resident card, etc.) - DB: applications.citizenship_proof_file_id UUID",
+    "military_discharge_papers": "PDF or image - DD-214 or equivalent, only if served before 1968 - DB: applications.military_discharge_papers_file_id UUID",
     "w2_forms": [
       {
+        "_note": "DB: stored in applications.w2_forms JSONB array with file_id references",
         "year": "",
-        "file": "PDF or image"
+        "file": "PDF or image - DB: reference to application_files.id UUID"
       }
     ],
     "self_employment_tax_returns": [
       {
+        "_note": "DB: stored in applications.self_employment_tax_returns JSONB array with file_id references",
         "year": "",
-        "file": "PDF"
+        "file": "PDF - DB: reference to application_files.id UUID"
       }
     ],
     "workers_comp_proof": [
       {
+        "_note": "DB: stored in applications.workers_comp_proof JSONB array with file_id references. Type is DB enum",
         "type": "award_letter|pay_stub|settlement_agreement|other",
         "description": "",
-        "file": "PDF or image"
+        "file": "PDF or image - DB: reference to application_files.id UUID"
       }
     ]
   }
