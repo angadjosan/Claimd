@@ -10,8 +10,6 @@ const Signup = lazy(() => import('./pages/Signup/Signup'));
 const UserPage = lazy(() => import('./pages/UserPage/UserPage'));
 const UserFormPage = lazy(() => import('./pages/UserFormPage/UserFormPage'));
 const UserApplicationDetail = lazy(() => import('./pages/UserApplicationDetail/UserApplicationDetail'));
-const AdminDash = lazy(() => import('./pages/AdminDash/AdminDash'));
-const ApplicationDetail = lazy(() => import('./pages/ApplicationDetail/ApplicationDetail'));
 
 function App() {
   return (
@@ -43,16 +41,6 @@ function App() {
               <Route path="/user/detail/:applicationId" element={
                 <ProtectedRoute>
                   <UserApplicationDetail />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin" element={
-                <ProtectedRoute requireAdmin={true}>
-                  <AdminDash />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/detail/:applicationId" element={
-                <ProtectedRoute requireAdmin={true}>
-                  <ApplicationDetail />
                 </ProtectedRoute>
               } />
             </Routes>

@@ -5,26 +5,16 @@ import type { ReactElement } from 'react';
 
 interface ProtectedRouteProps {
   children: ReactElement;
-  requireAdmin?: boolean;
 }
 
-export default function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
+export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
       const userInfo = await authService.verifyToken();
-      
-      if (userInfo) {
-        setIsAuthenticated(true);
-        setIsAdmin(userInfo.is_admin);
-      } else {
-        setIsAuthenticated(false);
-        setIsAdmin(false);
-      }
-      
+      setIsAuthenticated(!!userInfo);
       setIsLoading(false);
     };
 
@@ -42,16 +32,9 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
     );
   }
 
-  // Not authenticated at all - redirect to login
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // Authenticated but trying to access admin route without admin privileges
-  if (requireAdmin && !isAdmin) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Authenticated and authorized - render the protected component
   return children;
 }

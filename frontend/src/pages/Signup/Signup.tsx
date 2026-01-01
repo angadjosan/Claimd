@@ -16,16 +16,10 @@ export default function Signup() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Check if user is already authenticated
     const checkAuth = async () => {
       const userInfo = await authService.verifyToken();
       if (userInfo) {
-        // User is already logged in, redirect to appropriate page
-        if (userInfo.is_admin) {
-          navigate('/admin');
-        } else {
-          navigate('/user');
-        }
+        navigate('/user');
       }
     };
     checkAuth();
