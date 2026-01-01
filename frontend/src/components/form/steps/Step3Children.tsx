@@ -69,11 +69,13 @@ export const Step3Children: React.FC<StepProps> = ({ formData, updateFormData })
                 label="Child Name"
                 value={child.child_name}
                 onChange={(e) => updateChild(index, 'child_name', e.target.value)}
+                required
               />
               <DatePickerField
                 label="Date of Birth"
                 value={child.child_date_of_birth}
                 onChange={(e) => updateChild(index, 'child_date_of_birth', e.target.value)}
+                required
               />
             </div>
             <div className="bg-white p-3 rounded border border-gray-200">

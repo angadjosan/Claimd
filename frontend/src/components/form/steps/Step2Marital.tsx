@@ -10,20 +10,6 @@ interface StepProps {
 }
 
 export const Step2Marital: React.FC<StepProps> = ({ formData, updateFormData }) => {
-  // Initialize with one spouse if empty
-  React.useEffect(() => {
-    if (formData.spouses.length === 0) {
-      const initialSpouse: Spouse = {
-        spouse_name: '',
-        spouse_ssn: '',
-        spouse_birthdate: '',
-        marriage_start_date: '',
-        marriage_place_city: '',
-        marriage_place_state_or_country: ''
-      };
-      updateFormData({ spouses: [initialSpouse] });
-    }
-  }, []);
 
   const addSpouse = () => {
     const newSpouse: Spouse = {
