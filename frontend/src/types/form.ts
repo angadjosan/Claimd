@@ -95,10 +95,10 @@ export interface EarningsRecord {
 }
 
 export interface DisabilityBenefit {
-  type: string;
+  type: 'workers_compensation' | 'black_lung' | 'longshore_harbor_workers_comp' | 'civil_service_disability_retirement' | 'federal_employees_retirement' | 'federal_employees_compensation' | 'state_local_disability_insurance' | 'military_disability' | 'other';
   status: 'filed' | 'received' | 'intend_to_file';
   payment_type: 'temporary' | 'permanent' | 'annuity' | 'lump_sum';
-  payer: string;
+  payer: 'employer' | 'employer_insurance' | 'private_agency' | 'federal_government' | 'state_government' | 'local_government' | 'other';
   details?: string;
 }
 
@@ -110,13 +110,13 @@ export interface MedicalCondition {
 }
 
 export interface FunctionalLimitations {
-  walking?: boolean;
-  sitting?: boolean;
-  standing?: boolean;
-  lifting?: boolean;
-  carrying?: boolean;
-  understanding_instructions?: boolean;
-  remembering_instructions?: boolean;
+  walking?: string;
+  sitting?: string;
+  standing?: string;
+  lifting?: string;
+  carrying?: string;
+  understanding_instructions?: string;
+  remembering_instructions?: string;
   other?: string;
 }
 
@@ -124,7 +124,7 @@ export interface HealthcareProvider {
   name: string;
   address: string;
   phone_number: string;
-  patient_id_number: string;
+  patient_id_number?: string;
   dates_of_exams_and_treatments: string;
 }
 
@@ -137,7 +137,7 @@ export interface MedicalTest {
 
 export interface Medication {
   medication_name: string;
-  type: 'prescription' | 'non-prescription';
+  type: 'prescription' | 'non_prescription';
   reason: string;
   prescribed_by: string;
 }
@@ -149,7 +149,7 @@ export interface EvidenceDocument {
 }
 
 export interface OtherRecordSource {
-  type: string;
+  type: 'vocational_rehabilitation' | 'public_welfare' | 'prison_or_jail' | 'attorney' | 'other';
   name_or_description: string;
   contact_info?: string;
 }
@@ -209,7 +209,7 @@ export interface FormData {
   military_discharge_papers: File | null;
   w2_forms: { year: string; file: File | null }[];
   self_employment_tax_returns: { year: string; file: File | null }[];
-  workers_comp_proof: { type: string; description: string; file: File | null }[];
+  workers_comp_proof: { type: 'award_letter' | 'pay_stub' | 'settlement_agreement' | 'other'; description: string; file: File | null }[];
 }
 
 export const initialFormData: FormData = {

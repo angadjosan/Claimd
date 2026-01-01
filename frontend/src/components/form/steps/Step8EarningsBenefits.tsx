@@ -31,10 +31,10 @@ export const Step8EarningsBenefits: React.FC<StepProps> = ({ formData, updateFor
   // Disability Benefits Handlers
   const addBenefit = () => {
     const newBenefit: DisabilityBenefit = {
-      type: '',
-      status: '' as any,
-      payment_type: '' as any,
-      payer: ''
+      type: 'other',
+      status: 'filed',
+      payment_type: 'temporary',
+      payer: 'other'
     };
     updateFormData({ disability_benefits: [...formData.disability_benefits, newBenefit] });
   };
@@ -91,11 +91,22 @@ export const Step8EarningsBenefits: React.FC<StepProps> = ({ formData, updateFor
         emptyMessage="No disability benefits listed."
         renderItem={(benefit, index) => (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <TextField
+            <SelectField
               label="Type"
-              value={benefit.type}
+              value={benefit.type || ''}
               onChange={(e) => updateBenefit(index, 'type', e.target.value)}
-              placeholder="e.g., Workers Comp, VA Disability"
+              options={[
+                { value: 'workers_compensation', label: 'Workers Compensation' },
+                { value: 'black_lung', label: 'Black Lung' },
+                { value: 'longshore_harbor_workers_comp', label: 'Longshore/Harbor Workers Comp' },
+                { value: 'civil_service_disability_retirement', label: 'Civil Service Disability Retirement' },
+                { value: 'federal_employees_retirement', label: 'Federal Employees Retirement' },
+                { value: 'federal_employees_compensation', label: 'Federal Employees Compensation' },
+                { value: 'state_local_disability_insurance', label: 'State/Local Disability Insurance' },
+                { value: 'military_disability', label: 'Military Disability' },
+                { value: 'other', label: 'Other' }
+              ]}
+              placeholder="Select type"
               required
             />
             <SelectField
@@ -123,11 +134,20 @@ export const Step8EarningsBenefits: React.FC<StepProps> = ({ formData, updateFor
               placeholder="Select payment type"
               required
             />
-            <TextField
+            <SelectField
               label="Payer"
-              value={benefit.payer}
+              value={benefit.payer || ''}
               onChange={(e) => updateBenefit(index, 'payer', e.target.value)}
-              placeholder="e.g., State of California"
+              options={[
+                { value: 'employer', label: 'Employer' },
+                { value: 'employer_insurance', label: 'Employer Insurance' },
+                { value: 'private_agency', label: 'Private Agency' },
+                { value: 'federal_government', label: 'Federal Government' },
+                { value: 'state_government', label: 'State Government' },
+                { value: 'local_government', label: 'Local Government' },
+                { value: 'other', label: 'Other' }
+              ]}
+              placeholder="Select payer"
               required
             />
             <div className="md:col-span-2">

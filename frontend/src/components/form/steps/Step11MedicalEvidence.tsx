@@ -36,7 +36,7 @@ export const Step11MedicalEvidence: React.FC<StepProps> = ({ formData, updateFor
   // Other Record Sources Handlers
   const addSource = () => {
     const newSource: OtherRecordSource = {
-      type: '',
+      type: 'other',
       name_or_description: ''
     };
     updateFormData({ other_record_sources: [...formData.other_record_sources, newSource] });
@@ -107,11 +107,18 @@ export const Step11MedicalEvidence: React.FC<StepProps> = ({ formData, updateFor
         emptyMessage="No other record sources listed."
         renderItem={(source, index) => (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <TextField
+            <SelectField
               label="Type"
-              value={source.type}
+              value={source.type || ''}
               onChange={(e) => updateSource(index, 'type', e.target.value)}
-              placeholder="e.g., School Records, Social Services"
+              options={[
+                { value: 'vocational_rehabilitation', label: 'Vocational Rehabilitation' },
+                { value: 'public_welfare', label: 'Public Welfare' },
+                { value: 'prison_or_jail', label: 'Prison or Jail' },
+                { value: 'attorney', label: 'Attorney' },
+                { value: 'other', label: 'Other' }
+              ]}
+              placeholder="Select type"
               required
             />
             <TextField

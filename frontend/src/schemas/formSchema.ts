@@ -3,21 +3,63 @@ import { z } from 'zod';
 // Helper for File validation
 // In a browser environment, File is available globally.
 // We allow null because the initial state has nulls.
-const fileSchema = z.any().nullable().optional(); 
+const fileSchema = z.any().nullable().optional();
+
+// Date validation helper - ensures date is not in the future and not more than 200 years in the past
+const dateValidation = z.string().min(1).refine((dateStr) => {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const twoHundredYearsAgo = new Date();
+  twoHundredYearsAgo.setFullYear(now.getFullYear() - 200);
+  
+  return date <= now && date >= twoHundredYearsAgo;
+}, {
+  message: "Date must not be in the future and not more than 200 years in the past"
+});
+
+// Date validation for birthdates - allows dates up to today (not in future)
+const birthdateValidation = z.string().min(1).refine((dateStr) => {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const twoHundredYearsAgo = new Date();
+  twoHundredYearsAgo.setFullYear(now.getFullYear() - 200);
+  
+  return date <= now && date >= twoHundredYearsAgo;
+}, {
+  message: "Birthdate must not be in the future and not more than 200 years in the past"
+});
+
+// Year validation - must be a valid 4-digit year, not in the future, and reasonable (1900+)
+const yearValidation = z.string().min(1).refine((yearStr) => {
+  const year = parseInt(yearStr, 10);
+  const currentYear = new Date().getFullYear();
+  return !isNaN(year) && year >= 1900 && year <= currentYear && yearStr.length === 4;
+}, {
+  message: "Year must be a valid 4-digit year between 1900 and current year"
+}); 
 
 export const spouseSchema = z.object({
   spouse_name: z.string().min(1, "Spouse name is required"),
-  spouse_ssn: z.string().min(1, "Spouse SSN is required"), // You might want stricter validation
-  spouse_birthdate: z.string().min(1, "Spouse birthdate is required"),
-  marriage_start_date: z.string().min(1, "Marriage start date is required"),
-  marriage_end_date: z.string().optional(),
+  spouse_ssn: z.string().min(1, "Spouse SSN is required").regex(/^\d{3}-\d{2}-\d{4}$/, "SSN must be in format XXX-XX-XXXX"),
+  spouse_birthdate: birthdateValidation,
+  marriage_start_date: dateValidation,
+  marriage_end_date: z.string().optional().refine((dateStr) => {
+    if (!dateStr) return true;
+    const date = new Date(dateStr);
+    const now = new Date();
+    const twoHundredYearsAgo = new Date();
+    twoHundredYearsAgo.setFullYear(now.getFullYear() - 200);
+    return date <= now && date >= twoHundredYearsAgo;
+  }, {
+    message: "Date must not be in the future and not more than 200 years in the past"
+  }),
   marriage_place_city: z.string().min(1, "City is required"),
   marriage_place_state_or_country: z.string().min(1, "State/Country is required"),
 });
 
 export const childSchema = z.object({
   child_name: z.string().min(1, "Child name is required"),
-  child_date_of_birth: z.string().min(1, "Child birthdate is required"),
+  child_date_of_birth: birthdateValidation,
   child_status: z.object({
     disabled_before_22: z.boolean(),
     under_18_unmarried: z.boolean(),
@@ -104,8 +146,17 @@ export const emergencyContactSchema = z.object({
 export const jobSchema = z.object({
   job_title: z.string().min(1, "Job title is required"),
   employer_name: z.string().min(1, "Employer name is required"),
-  employment_start_date: z.string().min(1, "Start date is required"),
-  employment_end_date: z.string().optional(),
+  employment_start_date: dateValidation,
+  employment_end_date: z.string().optional().refine((dateStr) => {
+    if (!dateStr) return true;
+    const date = new Date(dateStr);
+    const now = new Date();
+    const twoHundredYearsAgo = new Date();
+    twoHundredYearsAgo.setFullYear(now.getFullYear() - 200);
+    return date <= now && date >= twoHundredYearsAgo;
+  }, {
+    message: "Date must not be in the future and not more than 200 years in the past"
+  }),
   total_earnings: z.string().min(1, "Total earnings is required"),
   job_duties_summary: z.string().min(1, "Job duties summary is required"),
   employer_address: z.string().min(1, "Employer address is required"),
@@ -114,19 +165,19 @@ export const jobSchema = z.object({
 export const selfEmploymentSchema = z.object({
   business_type: z.string().min(1, "Business type is required"),
   net_income_total: z.string().min(1, "Net income is required"),
-  tax_year: z.string().min(1, "Tax year is required"),
+  tax_year: yearValidation,
 });
 
 export const serviceRecordSchema = z.object({
   branch: z.string().min(1, "Branch is required"),
   type_of_duty: z.string().min(1, "Type of duty is required"),
-  service_start_date: z.string().min(1, "Start date is required"),
-  service_end_date: z.string().min(1, "End date is required"),
+  service_start_date: dateValidation,
+  service_end_date: dateValidation,
 });
 
 export const educationSchema = z.object({
   level: z.string().min(1, "Level is required"),
-  date_completed: z.string().min(1, "Date completed is required"),
+  date_completed: dateValidation,
 });
 
 export const specialEducationSchema = z.object({
@@ -137,37 +188,37 @@ export const specialEducationSchema = z.object({
 
 export const jobTrainingSchema = z.object({
   program_name: z.string().min(1, "Program name is required"),
-  date_completed: z.string().min(1, "Date completed is required"),
+  date_completed: dateValidation,
 });
 
 export const earningsRecordSchema = z.object({
-  year: z.string().min(1, "Year is required"),
+  year: yearValidation,
   total_earnings: z.string().min(1, "Total earnings is required"),
 });
 
 export const disabilityBenefitSchema = z.object({
-  type: z.string().min(1, "Type is required"),
+  type: z.enum(['workers_compensation', 'black_lung', 'longshore_harbor_workers_comp', 'civil_service_disability_retirement', 'federal_employees_retirement', 'federal_employees_compensation', 'state_local_disability_insurance', 'military_disability', 'other']),
   status: z.enum(['filed', 'received', 'intend_to_file']),
   payment_type: z.enum(['temporary', 'permanent', 'annuity', 'lump_sum']),
-  payer: z.string().min(1, "Payer is required"),
+  payer: z.enum(['employer', 'employer_insurance', 'private_agency', 'federal_government', 'state_government', 'local_government', 'other']),
   details: z.string().optional(),
 });
 
 export const medicalConditionSchema = z.object({
   condition_name: z.string().min(1, "Condition name is required"),
-  date_began: z.string().min(1, "Date began is required"),
+  date_began: dateValidation,
   how_it_limits_activities: z.string().min(1, "Description of limitations is required"),
   treatment_received: z.string().min(1, "Treatment received is required"),
 });
 
 export const functionalLimitationsSchema = z.object({
-  walking: z.boolean().optional(),
-  sitting: z.boolean().optional(),
-  standing: z.boolean().optional(),
-  lifting: z.boolean().optional(),
-  carrying: z.boolean().optional(),
-  understanding_instructions: z.boolean().optional(),
-  remembering_instructions: z.boolean().optional(),
+  walking: z.string().optional(),
+  sitting: z.string().optional(),
+  standing: z.string().optional(),
+  lifting: z.string().optional(),
+  carrying: z.string().optional(),
+  understanding_instructions: z.string().optional(),
+  remembering_instructions: z.string().optional(),
   other: z.string().optional(),
 });
 
@@ -175,20 +226,20 @@ export const healthcareProviderSchema = z.object({
   name: z.string().min(1, "Name is required"),
   address: z.string().min(1, "Address is required"),
   phone_number: z.string().min(1, "Phone number is required"),
-  patient_id_number: z.string().min(1, "Patient ID is required"),
+  patient_id_number: z.string().optional(),
   dates_of_exams_and_treatments: z.string().min(1, "Dates are required"),
 });
 
 export const medicalTestSchema = z.object({
   test_name: z.string().min(1, "Test name is required"),
-  test_date: z.string().min(1, "Test date is required"),
+  test_date: dateValidation,
   ordered_by: z.string().min(1, "Ordered by is required"),
   results_summary: z.string().min(1, "Results summary is required"),
 });
 
 export const medicationSchema = z.object({
   medication_name: z.string().min(1, "Medication name is required"),
-  type: z.enum(['prescription', 'non-prescription']),
+  type: z.enum(['prescription', 'non_prescription']),
   reason: z.string().min(1, "Reason is required"),
   prescribed_by: z.string().min(1, "Prescribed by is required"),
 });
@@ -200,16 +251,16 @@ export const evidenceDocumentSchema = z.object({
 });
 
 export const otherRecordSourceSchema = z.object({
-  type: z.string().min(1, "Type is required"),
+  type: z.enum(['vocational_rehabilitation', 'public_welfare', 'prison_or_jail', 'attorney', 'other']),
   name_or_description: z.string().min(1, "Name or description is required"),
   contact_info: z.string().optional(),
 });
 
 // Step Schemas
 export const step1Schema = z.object({
-  birthdate: z.string().min(1, "Birthdate is required"),
+  birthdate: birthdateValidation,
   birthplace: z.string().min(1, "Birthplace is required"),
-  ssn: z.string().min(9, "SSN must be at least 9 characters"),
+  ssn: z.string().min(1, "SSN is required").regex(/^\d{3}-\d{2}-\d{4}$/, "SSN must be in format XXX-XX-XXXX"),
   permanent_resident_card: fileSchema,
 });
 
@@ -230,7 +281,7 @@ export const step5Schema = z.object({
 });
 
 export const step6Schema = z.object({
-  date_condition_began_affecting_work_ability: z.string().min(1, "Date is required"),
+  date_condition_began_affecting_work_ability: dateValidation,
   non_self_employment: z.array(jobSchema),
   self_employment: z.array(selfEmploymentSchema),
 });
@@ -269,9 +320,9 @@ export const step12Schema = z.object({
   birth_certificate: fileSchema,
   citizenship_proof: fileSchema,
   military_discharge_papers: fileSchema,
-  w2_forms: z.array(z.object({ year: z.string(), file: fileSchema })),
-  self_employment_tax_returns: z.array(z.object({ year: z.string(), file: fileSchema })),
-  workers_comp_proof: z.array(z.object({ type: z.string(), description: z.string(), file: fileSchema })),
+  w2_forms: z.array(z.object({ year: yearValidation, file: fileSchema })),
+  self_employment_tax_returns: z.array(z.object({ year: yearValidation, file: fileSchema })),
+  workers_comp_proof: z.array(z.object({ type: z.enum(['award_letter', 'pay_stub', 'settlement_agreement', 'other']), description: z.string(), file: fileSchema })),
 });
 
 // Map step number to schema

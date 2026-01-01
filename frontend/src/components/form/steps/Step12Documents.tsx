@@ -1,6 +1,7 @@
 import React from 'react';
 import type { FormData } from '../../../types/form';
 import { TextField } from '../TextField';
+import { SelectField } from '../SelectField';
 import { FileUploadField } from '../FileUploadField';
 import { DynamicArrayField } from '../DynamicArrayField';
 
@@ -46,7 +47,7 @@ export const Step12Documents: React.FC<StepProps> = ({ formData, updateFormData 
 
   // Workers Comp Proof Handlers
   const addWorkersComp = () => {
-    updateFormData({ workers_comp_proof: [...formData.workers_comp_proof, { type: '', description: '', file: null }] });
+    updateFormData({ workers_comp_proof: [...formData.workers_comp_proof, { type: 'other', description: '', file: null }] });
   };
 
   const removeWorkersComp = (index: number) => {
@@ -153,10 +154,17 @@ export const Step12Documents: React.FC<StepProps> = ({ formData, updateFormData 
         renderItem={(proof, index) => (
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <TextField
+              <SelectField
                 label="Type"
-                value={proof.type}
+                value={proof.type || ''}
                 onChange={(e) => updateWorkersComp(index, 'type', e.target.value)}
+                options={[
+                  { value: 'award_letter', label: 'Award Letter' },
+                  { value: 'pay_stub', label: 'Pay Stub' },
+                  { value: 'settlement_agreement', label: 'Settlement Agreement' },
+                  { value: 'other', label: 'Other' }
+                ]}
+                placeholder="Select type"
                 required
               />
               <TextField

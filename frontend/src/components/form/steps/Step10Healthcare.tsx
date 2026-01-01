@@ -113,10 +113,9 @@ export const Step10Healthcare: React.FC<StepProps> = ({ formData, updateFormData
               required
             />
             <TextField
-              label="Patient ID Number"
-              value={provider.patient_id_number}
+              label="Patient ID Number (Optional)"
+              value={provider.patient_id_number || ''}
               onChange={(e) => updateProvider(index, 'patient_id_number', e.target.value)}
-              required
             />
             <div className="md:col-span-2">
               <TextField
@@ -195,7 +194,7 @@ export const Step10Healthcare: React.FC<StepProps> = ({ formData, updateFormData
               onChange={(e) => updateMedication(index, 'type', e.target.value)}
               options={[
                 { value: 'prescription', label: 'Prescription' },
-                { value: 'non-prescription', label: 'Non-Prescription (OTC)' }
+                { value: 'non_prescription', label: 'Non-Prescription (OTC)' }
               ]}
               placeholder="Select type"
               required

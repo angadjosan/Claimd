@@ -2,7 +2,6 @@ import React from 'react';
 import type { FormData, MedicalCondition, FunctionalLimitations } from '../../../types/form';
 import { TextField } from '../TextField';
 import { DatePickerField } from '../DatePickerField';
-import { CheckboxField } from '../CheckboxField';
 import { DynamicArrayField } from '../DynamicArrayField';
 
 interface StepProps {
@@ -33,7 +32,7 @@ export const Step9MedicalConditions: React.FC<StepProps> = ({ formData, updateFo
     updateFormData({ conditions: newConditions });
   };
 
-  const updateLimitation = (field: keyof FunctionalLimitations, value: boolean) => {
+  const updateLimitation = (field: keyof FunctionalLimitations, value: string) => {
     updateFormData({
       functional_limitations: {
         ...formData.functional_limitations,
@@ -108,43 +107,50 @@ export const Step9MedicalConditions: React.FC<StepProps> = ({ formData, updateFo
 
       <div className="bg-white p-4 rounded-lg border border-gray-200">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Functional Limitations</h3>
-        <p className="text-sm text-gray-500 mb-4">Check all that apply.</p>
+        <p className="text-sm text-gray-500 mb-4">Describe your limitations for each activity.</p>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <CheckboxField
+          <TextField
             label="Walking"
-            checked={formData.functional_limitations.walking}
-            onChange={(e) => updateLimitation('walking', e.target.checked)}
+            value={formData.functional_limitations.walking || ''}
+            onChange={(e) => updateLimitation('walking', e.target.value)}
+            placeholder="Describe walking limitations"
           />
-          <CheckboxField
+          <TextField
             label="Sitting"
-            checked={formData.functional_limitations.sitting}
-            onChange={(e) => updateLimitation('sitting', e.target.checked)}
+            value={formData.functional_limitations.sitting || ''}
+            onChange={(e) => updateLimitation('sitting', e.target.value)}
+            placeholder="Describe sitting limitations"
           />
-          <CheckboxField
+          <TextField
             label="Standing"
-            checked={formData.functional_limitations.standing}
-            onChange={(e) => updateLimitation('standing', e.target.checked)}
+            value={formData.functional_limitations.standing || ''}
+            onChange={(e) => updateLimitation('standing', e.target.value)}
+            placeholder="Describe standing limitations"
           />
-          <CheckboxField
+          <TextField
             label="Lifting"
-            checked={formData.functional_limitations.lifting}
-            onChange={(e) => updateLimitation('lifting', e.target.checked)}
+            value={formData.functional_limitations.lifting || ''}
+            onChange={(e) => updateLimitation('lifting', e.target.value)}
+            placeholder="Describe lifting limitations"
           />
-          <CheckboxField
+          <TextField
             label="Carrying"
-            checked={formData.functional_limitations.carrying}
-            onChange={(e) => updateLimitation('carrying', e.target.checked)}
+            value={formData.functional_limitations.carrying || ''}
+            onChange={(e) => updateLimitation('carrying', e.target.value)}
+            placeholder="Describe carrying limitations"
           />
-          <CheckboxField
+          <TextField
             label="Understanding Instructions"
-            checked={formData.functional_limitations.understanding_instructions}
-            onChange={(e) => updateLimitation('understanding_instructions', e.target.checked)}
+            value={formData.functional_limitations.understanding_instructions || ''}
+            onChange={(e) => updateLimitation('understanding_instructions', e.target.value)}
+            placeholder="Describe limitations understanding instructions"
           />
-          <CheckboxField
+          <TextField
             label="Remembering Instructions"
-            checked={formData.functional_limitations.remembering_instructions}
-            onChange={(e) => updateLimitation('remembering_instructions', e.target.checked)}
+            value={formData.functional_limitations.remembering_instructions || ''}
+            onChange={(e) => updateLimitation('remembering_instructions', e.target.value)}
+            placeholder="Describe limitations remembering instructions"
           />
         </div>
         
@@ -153,6 +159,7 @@ export const Step9MedicalConditions: React.FC<StepProps> = ({ formData, updateFo
             label="Other Limitations"
             value={formData.functional_limitations.other || ''}
             onChange={(e) => updateOtherLimitation(e.target.value)}
+            placeholder="Describe any other limitations"
           />
         </div>
       </div>
