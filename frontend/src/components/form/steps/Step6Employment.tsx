@@ -65,6 +65,7 @@ export const Step6Employment: React.FC<StepProps> = ({ formData, updateFormData 
         label="Date condition began affecting work ability"
         value={formData.date_condition_began_affecting_work_ability}
         onChange={(e) => updateFormData({ date_condition_began_affecting_work_ability: e.target.value })}
+        required
       />
 
       <DynamicArrayField
@@ -80,16 +81,19 @@ export const Step6Employment: React.FC<StepProps> = ({ formData, updateFormData 
               label="Job Title"
               value={job.job_title}
               onChange={(e) => updateJob(index, 'job_title', e.target.value)}
+              required
             />
             <TextField
               label="Employer Name"
               value={job.employer_name}
               onChange={(e) => updateJob(index, 'employer_name', e.target.value)}
+              required
             />
             <DatePickerField
               label="Start Date"
               value={job.employment_start_date}
               onChange={(e) => updateJob(index, 'employment_start_date', e.target.value)}
+              required
             />
             <DatePickerField
               label="End Date (Optional)"
@@ -100,11 +104,13 @@ export const Step6Employment: React.FC<StepProps> = ({ formData, updateFormData 
               label="Total Earnings"
               value={job.total_earnings}
               onChange={(e) => updateJob(index, 'total_earnings', e.target.value)}
+              required
             />
             <TextField
               label="Employer Address"
               value={job.employer_address}
               onChange={(e) => updateJob(index, 'employer_address', e.target.value)}
+              required
             />
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -115,6 +121,7 @@ export const Step6Employment: React.FC<StepProps> = ({ formData, updateFormData 
                 rows={3}
                 value={job.job_duties_summary}
                 onChange={(e) => updateJob(index, 'job_duties_summary', e.target.value)}
+                required
               />
             </div>
           </div>
@@ -134,16 +141,19 @@ export const Step6Employment: React.FC<StepProps> = ({ formData, updateFormData 
               label="Business Type"
               value={self.business_type}
               onChange={(e) => updateSelfEmployment(index, 'business_type', e.target.value)}
+              required
             />
             <TextField
               label="Net Income Total"
               value={self.net_income_total}
               onChange={(e) => updateSelfEmployment(index, 'net_income_total', e.target.value)}
+              required
             />
             <TextField
               label="Tax Year"
               value={self.tax_year}
               onChange={(e) => updateSelfEmployment(index, 'tax_year', e.target.value)}
+              required
             />
           </div>
         )}
