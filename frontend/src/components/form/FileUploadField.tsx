@@ -8,6 +8,7 @@ interface FileUploadFieldProps {
   accept?: string;
   error?: string;
   className?: string;
+  required?: boolean;
 }
 
 export const FileUploadField: React.FC<FileUploadFieldProps> = ({ 
@@ -16,7 +17,8 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
   value, 
   accept = ".pdf,.jpg,.jpeg,.png", 
   error,
-  className = ''
+  className = '',
+  required
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -55,6 +57,7 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
     <div className={`mb-4 ${className}`}>
       <label className="block text-sm font-medium text-gray-700 mb-1">
         {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       
       {!value ? (

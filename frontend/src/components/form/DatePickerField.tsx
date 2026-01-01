@@ -5,11 +5,12 @@ interface DatePickerFieldProps extends React.InputHTMLAttributes<HTMLInputElemen
   error?: string;
 }
 
-export const DatePickerField: React.FC<DatePickerFieldProps> = ({ label, error, className = '', ...props }) => {
+export const DatePickerField: React.FC<DatePickerFieldProps> = ({ label, error, className = '', required, ...props }) => {
   return (
     <div className={`mb-4 ${className}`}>
       <label className="block text-sm font-medium text-gray-700 mb-1">
         {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       <input
         type="date"

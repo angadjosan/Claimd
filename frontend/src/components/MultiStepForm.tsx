@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Save } from 'lucide-react';
 import { initialFormData } from '../types/form';
 import type { FormData } from '../types/form';
 import { stepSchemas } from '../schemas/formSchema';
+import { useToast } from './Toast';
 
 // Import Steps
 import { Step1Personal } from './form/steps/Step1Personal';
@@ -40,6 +41,7 @@ export default function MultiStepForm() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const { showToast } = useToast();
 
   // Load draft from localStorage on mount
   useEffect(() => {
@@ -62,7 +64,7 @@ export default function MultiStepForm() {
 
   const saveDraft = () => {
     localStorage.setItem('formDraft', JSON.stringify(formData));
-    alert('Draft Saved!');
+    showToast('Draft saved successfully!', 'success');
   };
 
   const nextStep = () => {
@@ -70,12 +72,12 @@ export default function MultiStepForm() {
     if (schema) {
       const result = schema.safeParse(formData);
       if (!result.success) {
-        const errorMessages = result.error.errors.map((e: any) => {
+        const errorMessages = result.error.issues.map((e: any) => {
           // Format the error message to be more user friendly
           const field = e.path[e.path.length - 1];
           return `${field}: ${e.message}`;
         }).join('\n');
-        alert(`Please fix the following errors:\n${errorMessages}`);
+        showToast(`Please fix the following errors:\n${errorMessages}`, 'error');
         return;
       }
     }
@@ -104,12 +106,12 @@ export default function MultiStepForm() {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 2000));
       console.log('Form Submitted', formData);
-      alert('Application Submitted Successfully!');
+      showToast('Application submitted successfully!', 'success');
       localStorage.removeItem('formDraft');
       // Redirect or show success message
     } catch (error) {
       console.error('Submission failed', error);
-      alert('Submission failed. Please try again.');
+      showToast('Submission failed. Please try again.', 'error');
     } finally {
       setIsSubmitting(false);
     }

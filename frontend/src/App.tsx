@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
+import { ToastProvider } from './components/Toast';
 
 // Lazy load all pages for better performance
 const Landing = lazy(() => import('./pages/Landing/Landing'));
@@ -14,6 +15,7 @@ const UserApplicationDetail = lazy(() => import('./pages/UserApplicationDetail/U
 function App() {
   return (
     <ErrorBoundary>
+      <ToastProvider>
       <Router>
         <div className="App">
           <Suspense fallback={
@@ -48,6 +50,7 @@ function App() {
           </Suspense>
         </div>
       </Router>
+      </ToastProvider>
     </ErrorBoundary>
   );
 }

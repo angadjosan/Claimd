@@ -4,7 +4,7 @@ interface CheckboxFieldProps extends React.InputHTMLAttributes<HTMLInputElement>
   label: string;
 }
 
-export const CheckboxField: React.FC<CheckboxFieldProps> = ({ label, className = '', ...props }) => {
+export const CheckboxField: React.FC<CheckboxFieldProps> = ({ label, className = '', required, ...props }) => {
   return (
     <div className={`flex items-center mb-4 ${className}`}>
       <input
@@ -14,6 +14,7 @@ export const CheckboxField: React.FC<CheckboxFieldProps> = ({ label, className =
       />
       <label className="ml-2 block text-sm text-gray-900">
         {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
       </label>
     </div>
   );
