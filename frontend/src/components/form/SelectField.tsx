@@ -4,9 +4,10 @@ interface SelectFieldProps extends React.SelectHTMLAttributes<HTMLSelectElement>
   label: string;
   options: { value: string; label: string }[];
   error?: string;
+  placeholder?: string;
 }
 
-export const SelectField: React.FC<SelectFieldProps> = ({ label, options, error, className = '', required, ...props }) => {
+export const SelectField: React.FC<SelectFieldProps> = ({ label, options, error, className = '', required, placeholder = 'Select...', ...props }) => {
   return (
     <div className={`mb-4 ${className}`}>
       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -19,7 +20,7 @@ export const SelectField: React.FC<SelectFieldProps> = ({ label, options, error,
         }`}
         {...props}
       >
-        <option value="">Select an option</option>
+        <option value="">{placeholder}</option>
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

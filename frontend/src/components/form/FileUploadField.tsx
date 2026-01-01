@@ -53,6 +53,8 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
     }
   };
 
+  const isValidFile = value instanceof File && value.size > 0;
+
   return (
     <div className={`mb-4 ${className}`}>
       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -60,7 +62,7 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       
-      {!value ? (
+      {!isValidFile ? (
         <div
           className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
             isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
@@ -88,8 +90,8 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
           <div className="flex items-center space-x-3">
             <FileText className="h-8 w-8 text-blue-500" />
             <div>
-              <p className="text-sm font-medium text-gray-900 truncate max-w-xs">{value.name}</p>
-              <p className="text-xs text-gray-500">{(value.size / 1024 / 1024).toFixed(2)} MB</p>
+              <p className="text-sm font-medium text-gray-900 truncate max-w-xs">{value.name || 'Uploaded file'}</p>
+              <p className="text-xs text-gray-500">{value.size ? `${(value.size / 1024 / 1024).toFixed(2)} MB` : ''}</p>
             </div>
           </div>
           <button
