@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Save } from 'lucide-react';
 import { initialFormData } from '../types/form';
 import type { FormData } from '../types/form';
+import { stepSchemas } from '../schemas/formSchema';
 
 // Import Steps
 import { Step1Personal } from './form/steps/Step1Personal';
@@ -55,18 +56,30 @@ export default function MultiStepForm() {
     setIsLoaded(true);
   }, []);
 
-  // Save draft to localStorage on change
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('formDraft', JSON.stringify(formData));
-    }
-  }, [formData, isLoaded]);
-
   const updateFormData = (data: Partial<FormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
   };
 
+  const saveDraft = () => {
+    localStorage.setItem('formDraft', JSON.stringify(formData));
+    alert('Draft Saved!');
+  };
+
   const nextStep = () => {
+    const schema = stepSchemas[currentStep];
+    if (schema) {
+      const result = schema.safeParse(formData);
+      if (!result.success) {
+        const errorMessages = result.error.errors.map((e: any) => {
+          // Format the error message to be more user friendly
+          const field = e.path[e.path.length - 1];
+          return `${field}: ${e.message}`;
+        }).join('\n');
+        alert(`Please fix the following errors:\n${errorMessages}`);
+        return;
+      }
+    }
+
     if (currentStep < STEPS.length) {
       setCurrentStep((prev) => prev + 1);
       window.scrollTo(0, 0);
@@ -167,7 +180,7 @@ export default function MultiStepForm() {
             <div className="flex space-x-3">
               <button
                 type="button"
-                onClick={() => alert('Draft Saved!')}
+                onClick={saveDraft}
                 className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 <Save className="h-4 w-4 mr-2" />
