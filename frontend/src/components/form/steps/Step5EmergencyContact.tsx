@@ -41,6 +41,7 @@ export const Step5EmergencyContact: React.FC<StepProps> = ({ formData, updateFor
           label="Contact Name"
           value={formData.contact_who_knows_your_condition.contact_name}
           onChange={(e) => updateContact('contact_name', e.target.value)}
+          required
         />
         <TextField
           label="Relationship (Optional)"
@@ -51,38 +52,37 @@ export const Step5EmergencyContact: React.FC<StepProps> = ({ formData, updateFor
           label="Phone Number"
           value={formData.contact_who_knows_your_condition.phone_number}
           onChange={(e) => updateContact('phone_number', e.target.value)}
+          required
         />
-      </div>
-
-      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-4">
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Address</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <TextField
-            label="Street"
-            value={formData.contact_who_knows_your_condition.address.street}
-            onChange={(e) => updateAddress('street', e.target.value)}
-          />
-          <TextField
-            label="City"
-            value={formData.contact_who_knows_your_condition.address.city}
-            onChange={(e) => updateAddress('city', e.target.value)}
-          />
-          <TextField
-            label="State"
-            value={formData.contact_who_knows_your_condition.address.state}
-            onChange={(e) => updateAddress('state', e.target.value)}
-          />
-          <TextField
-            label="Zip Code"
-            value={formData.contact_who_knows_your_condition.address.zip}
-            onChange={(e) => updateAddress('zip', e.target.value)}
-          />
-          <TextField
-            label="Country (Optional)"
-            value={formData.contact_who_knows_your_condition.address.country || ''}
-            onChange={(e) => updateAddress('country', e.target.value)}
-          />
-        </div>
+        <TextField
+          label="Street"
+          value={formData.contact_who_knows_your_condition.address.street}
+          onChange={(e) => updateAddress('street', e.target.value)}
+          required
+        />
+        <TextField
+          label="City"
+          value={formData.contact_who_knows_your_condition.address.city}
+          onChange={(e) => updateAddress('city', e.target.value)}
+          required
+        />
+        <TextField
+          label="State"
+          value={formData.contact_who_knows_your_condition.address.state}
+          onChange={(e) => updateAddress('state', e.target.value)}
+          required
+        />
+        <TextField
+          label="Zip Code"
+          value={formData.contact_who_knows_your_condition.address.zip}
+          onChange={(e) => updateAddress('zip', e.target.value)}
+          required
+        />
+        <TextField
+          label="Country (Optional)"
+          value={formData.contact_who_knows_your_condition.address.country || ''}
+          onChange={(e) => updateAddress('country', e.target.value)}
+        />
       </div>
 
       <div className="mt-4">
