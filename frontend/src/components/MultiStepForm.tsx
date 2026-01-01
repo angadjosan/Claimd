@@ -180,7 +180,6 @@ export default function MultiStepForm() {
             </button>
             
             <div className="flex space-x-3">
-              
               <button
                 type="button"
                 onClick={nextStep}

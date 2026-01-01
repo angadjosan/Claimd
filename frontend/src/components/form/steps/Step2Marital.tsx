@@ -10,6 +10,21 @@ interface StepProps {
 }
 
 export const Step2Marital: React.FC<StepProps> = ({ formData, updateFormData }) => {
+  // Initialize with one spouse if empty
+  React.useEffect(() => {
+    if (formData.spouses.length === 0) {
+      const initialSpouse: Spouse = {
+        spouse_name: '',
+        spouse_ssn: '',
+        spouse_birthdate: '',
+        marriage_start_date: '',
+        marriage_place_city: '',
+        marriage_place_state_or_country: ''
+      };
+      updateFormData({ spouses: [initialSpouse] });
+    }
+  }, []);
+
   const addSpouse = () => {
     const newSpouse: Spouse = {
       spouse_name: '',
@@ -34,6 +49,33 @@ export const Step2Marital: React.FC<StepProps> = ({ formData, updateFormData }) 
     updateFormData({ spouses: newSpouses });
   };
 
+  const formatSSN = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 5) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5, 9)}`;
+  };
+
+  const maskSSN = (value: string) => {
+    return value.replace(/\d/g, '•');
+  };
+
+  const handleSpouseSSNChange = (index: number, inputValue: string) => {
+    const currentSSN = formData.spouses[index]?.spouse_ssn || '';
+    const currentDigits = currentSSN.replace(/\D/g, '');
+    const inputWithoutBullets = inputValue.replace(/•/g, '');
+    const newDigits = inputWithoutBullets.replace(/\D/g, '');
+    
+    if (inputValue.length < maskSSN(currentSSN).length) {
+      const formatted = formatSSN(currentDigits.slice(0, -1));
+      updateSpouse(index, 'spouse_ssn', formatted);
+    } else {
+      const addedDigit = newDigits.slice(-1);
+      const formatted = formatSSN(currentDigits + addedDigit);
+      updateSpouse(index, 'spouse_ssn', formatted);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold text-gray-900">Marital Status</h2>
@@ -54,21 +96,21 @@ export const Step2Marital: React.FC<StepProps> = ({ formData, updateFormData }) 
               label="Spouse Name"
               value={spouse.spouse_name}
               onChange={(e) => updateSpouse(index, 'spouse_name', e.target.value)}
+              required
             />
             <TextField
               label="Spouse SSN"
-              value={spouse.spouse_ssn}
-              onChange={(e) => updateSpouse(index, 'spouse_ssn', e.target.value)}
-            />
-            <DatePickerField
-              label="Spouse Birthdate"
-              value={spouse.spouse_birthdate}
-              onChange={(e) => updateSpouse(index, 'spouse_birthdate', e.target.value)}
+              placeholder="•••-••-••••"
+              value={maskSSN(spouse.spouse_ssn || '')}
+              onChange={(e) => handleSpouseSSNChange(index, e.target.value)}
+              maxLength={11}
+              required
             />
             <DatePickerField
               label="Marriage Start Date"
               value={spouse.marriage_start_date}
               onChange={(e) => updateSpouse(index, 'marriage_start_date', e.target.value)}
+              required
             />
             <DatePickerField
               label="Marriage End Date (if applicable)"
@@ -79,11 +121,19 @@ export const Step2Marital: React.FC<StepProps> = ({ formData, updateFormData }) 
               label="Marriage City"
               value={spouse.marriage_place_city}
               onChange={(e) => updateSpouse(index, 'marriage_place_city', e.target.value)}
+              required
             />
             <TextField
               label="Marriage State/Country"
               value={spouse.marriage_place_state_or_country}
               onChange={(e) => updateSpouse(index, 'marriage_place_state_or_country', e.target.value)}
+              required
+            />
+            <DatePickerField
+              label="Spouse Birthdate"
+              value={spouse.spouse_birthdate}
+              onChange={(e) => updateSpouse(index, 'spouse_birthdate', e.target.value)}
+              required
             />
           </div>
         )}
