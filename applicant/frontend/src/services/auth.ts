@@ -1,156 +1,86 @@
-import { config } from '../config/env';
-import Cookies from 'js-cookie';
-
-const TOKEN_KEY = 'auth_token';
-const USER_KEY = 'user_data';
-
-export interface LoginCredentials {
-  user_id: string;
-  password?: string;
-}
-
-export interface SignupCredentials {
-  name: string;
-  email: string;
-  password: string;
-}
+import { supabase } from '../lib/supabase';
+import type { User, Session } from '@supabase/supabase-js';
 
 export interface AuthResponse {
-  access_token: string;
-  token_type: string;
-  user_id: string;
-  is_admin: boolean;
+  user: User | null;
+  session: Session | null;
 }
 
 export interface UserInfo {
-  user_id: string;
-  is_admin: boolean;
-  email?: string;
-  name?: string;
+  id: string;
+  email: string | undefined;
 }
 
 class AuthService {
-  async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await fetch(`${config.apiUrl}/api/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(credentials),
+  async login(email: string, password: string): Promise<AuthResponse> {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
     });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Login failed' }));
-      throw new Error(error.detail || 'Login failed');
+    if (error) {
+      throw new Error(error.message);
     }
-
-    const data: AuthResponse = await response.json();
-    this.setToken(data.access_token);
-    this.setUserInfo({
-      user_id: data.user_id,
-      is_admin: data.is_admin,
-    });
 
     return data;
   }
 
-  async signup(credentials: SignupCredentials): Promise<AuthResponse> {
-    const response = await fetch(`${config.apiUrl}/api/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(credentials),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Registration failed' }));
-      throw new Error(error.detail || 'Registration failed');
-    }
-
-    const data: AuthResponse = await response.json();
-    this.setToken(data.access_token);
-    this.setUserInfo({
-      user_id: data.user_id,
-      is_admin: data.is_admin,
-    });
-
-    return data;
-  }
-
-  async verifyToken(): Promise<UserInfo | null> {
-    const token = this.getToken();
-    if (!token) {
-      return null;
-    }
-
-    try {
-      const response = await fetch(`${config.apiUrl}/api/auth/verify`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
+  async signup(email: string, password: string, name?: string): Promise<AuthResponse> {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
         },
-      });
+      },
+    });
 
-      if (!response.ok) {
-        this.logout();
-        return null;
-      }
+    if (error) {
+      throw new Error(error.message);
+    }
 
-      const data = await response.json();
-      if (data.valid) {
-        const userInfo: UserInfo = {
-          user_id: data.user_id,
-          is_admin: data.is_admin,
-          email: data.email,
-        };
-        this.setUserInfo(userInfo);
-        return userInfo;
-      }
+    return data;
+  }
 
-      this.logout();
-      return null;
-    } catch (error) {
-      this.logout();
-      return null;
+  async logout(): Promise<void> {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      throw new Error(error.message);
     }
   }
 
-  logout(): void {
-    Cookies.remove(TOKEN_KEY);
-    Cookies.remove(USER_KEY);
-    Cookies.remove('userData');
+  async getSession(): Promise<Session | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session;
   }
 
-  getToken(): string | null {
-    return Cookies.get(TOKEN_KEY) || null;
+  async getUser(): Promise<User | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user;
   }
 
-  private setToken(token: string): void {
-    Cookies.set(TOKEN_KEY, token, { expires: 7 });
+  async getUserInfo(): Promise<UserInfo | null> {
+    const user = await this.getUser();
+    if (!user) return null;
+    
+    return {
+      id: user.id,
+      email: user.email,
+    };
   }
 
-  getUserInfo(): UserInfo | null {
-    const userStr = Cookies.get(USER_KEY);
-    if (!userStr) {
-      return null;
-    }
-    try {
-      return JSON.parse(userStr);
-    } catch {
-      return null;
-    }
+  onAuthStateChange(callback: (event: string, session: Session | null) => void) {
+    return supabase.auth.onAuthStateChange(callback);
   }
 
-  private setUserInfo(userInfo: UserInfo): void {
-    Cookies.set(USER_KEY, JSON.stringify(userInfo), { expires: 7 });
+  async getAccessToken(): Promise<string | null> {
+    const session = await this.getSession();
+    return session?.access_token ?? null;
   }
 
-  isAuthenticated(): boolean {
-    return !!this.getToken();
-  }
-
-  getAuthHeader(): { Authorization: string } | {} {
-    const token = this.getToken();
+  async getAuthHeader(): Promise<{ Authorization: string } | Record<string, never>> {
+    const token = await this.getAccessToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 }

@@ -20,7 +20,7 @@ export default function MinimalNavbar() {
               Home
             </Link>
             <Link 
-              to="/user" 
+              to="/apply" 
               className="text-sm text-gray-900 border border-gray-900 px-4 py-2 rounded-full hover:bg-gray-900 hover:text-white transition-all duration-200"
             >
               Dashboard

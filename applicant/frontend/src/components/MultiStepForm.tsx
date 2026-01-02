@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Save } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { initialFormData } from '../types/form';
 import type { FormData } from '../types/form';
 import { stepSchemas } from '../schemas/formSchema';
@@ -60,11 +60,6 @@ export default function MultiStepForm() {
 
   const updateFormData = (data: Partial<FormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
-  };
-
-  const saveDraft = () => {
-    localStorage.setItem('formDraft', JSON.stringify(formData));
-    showToast('Draft saved successfully!', 'success');
   };
 
   const nextStep = () => {

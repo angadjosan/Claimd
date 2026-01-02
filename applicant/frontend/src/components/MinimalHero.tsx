@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import DisabilityGlobe from './DisabilityGlobe';
 
 export default function MinimalHero() {

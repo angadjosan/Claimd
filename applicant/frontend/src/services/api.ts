@@ -50,9 +50,10 @@ export const api = {
   // Get specific application by ID
   async getApplicationById(applicationId: string): Promise<Application | null> {
     try {
+      const authHeader = await authService.getAuthHeader();
       const response = await fetch(`${config.apiUrl}/api/application/${applicationId}`, {
         headers: {
-          ...authService.getAuthHeader(),
+          ...authHeader,
         },
       });
       if (!response.ok) {

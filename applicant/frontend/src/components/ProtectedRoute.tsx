@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { authService } from '../services/auth';
 import type { ReactElement } from 'react';
+import type { Session } from '@supabase/supabase-js';
 
 interface ProtectedRouteProps {
   children: ReactElement;
@@ -9,16 +10,24 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const userInfo = await authService.verifyToken();
-      setIsAuthenticated(!!userInfo);
+    // Check initial session
+    authService.getSession().then((session) => {
+      setSession(session);
       setIsLoading(false);
-    };
+    });
 
-    checkAuth();
+    // Subscribe to auth changes
+    const { data: { subscription } } = authService.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setIsLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   if (isLoading) {
@@ -32,8 +41,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  if (!session) {
+    return <Navigate to="/auth" replace />;
   }
 
   return children;

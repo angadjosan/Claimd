@@ -6,11 +6,8 @@ import { ToastProvider } from './components/Toast';
 
 // Lazy load all pages for better performance
 const Landing = lazy(() => import('./pages/Landing/Landing'));
-const Login = lazy(() => import('./pages/Login/Login'));
-const Signup = lazy(() => import('./pages/Signup/Signup'));
-const UserPage = lazy(() => import('./pages/UserPage/UserPage'));
+const AuthPage = lazy(() => import('./pages/Auth/Auth'));
 const UserFormPage = lazy(() => import('./pages/UserFormPage/UserFormPage'));
-const UserApplicationDetail = lazy(() => import('./pages/UserApplicationDetail/UserApplicationDetail'));
 
 function App() {
   return (
@@ -28,22 +25,10 @@ function App() {
           }>
             <Routes>
               <Route path="/" element={<Landing />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/apply" element={<UserFormPage />} />
-              <Route path="/user" element={
-                <ProtectedRoute>
-                  <UserPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/user/form" element={
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/apply" element={
                 <ProtectedRoute>
                   <UserFormPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/user/detail/:applicationId" element={
-                <ProtectedRoute>
-                  <UserApplicationDetail />
                 </ProtectedRoute>
               } />
             </Routes>
