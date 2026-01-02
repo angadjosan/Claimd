@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/auth';
 import type { ReactElement } from 'react';
 import type { Session } from '@supabase/supabase-js';
@@ -11,6 +11,7 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
+  const location = useLocation();
 
   useEffect(() => {
     // Check initial session
@@ -42,7 +43,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!session) {
-    return <Navigate to="/auth" replace />;
+    const redirectPath = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/auth?redirect=${redirectPath}`} replace />;
   }
 
   return children;

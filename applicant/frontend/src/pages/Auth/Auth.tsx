@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { authService } from '../../services/auth';
@@ -9,6 +9,8 @@ type AuthMode = 'sign_in' | 'sign_up' | 'forgot_password';
 
 export default function AuthPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/apply';
   const [mode, setMode] = useState<AuthMode>('sign_in');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,14 +27,14 @@ export default function AuthPage() {
     // Check if already logged in
     authService.getSession().then((session) => {
       if (session) {
-        navigate('/apply');
+        navigate(redirectTo);
       }
     });
 
     // Listen for auth changes
     const { data: { subscription } } = authService.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        navigate('/apply');
+        navigate(redirectTo);
       }
     });
 
@@ -54,7 +56,7 @@ export default function AuthPage() {
           password: formData.password,
         });
         if (error) throw error;
-        navigate('/apply');
+        navigate(redirectTo);
       } else if (mode === 'sign_up') {
         if (formData.password !== formData.confirmPassword) {
           throw new Error('Passwords do not match');
