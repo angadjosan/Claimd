@@ -326,7 +326,7 @@ export default function DisabilityGlobe() {
               AI-powered processing reduces Social Security Disability Insurance (SSDI) wait times from 7 months to under 2 days
             </p>
             <Link
-              to="/apply"
+              to="/dashboard"
               className="inline-flex items-center justify-center px-8 py-3 rounded-lg text-base font-medium text-white pointer-events-auto transition-opacity duration-300 hover:opacity-90"
               style={{
                 background: 'linear-gradient(135deg, #3B82F6, #8B5CF6, #EC4899)'

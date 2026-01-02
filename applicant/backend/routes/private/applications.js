@@ -390,12 +390,31 @@ router.post('/', uploadFields, async (req, res) => {
       });
     }
 
-    // Upload all files and get their IDs
+    // Create a draft application record FIRST (before uploading files)
+    // This ensures the application_id exists for the foreign key constraint
+    const { error: draftError } = await supabase
+      .from('applications')
+      .insert({
+        id: applicationId,
+        applicant_id: userId,
+        status: 'draft',
+        current_step: 1,
+        steps_completed: JSON.stringify([]),
+      });
+
+    if (draftError) {
+      console.error('Draft application creation error:', draftError);
+      return res.status(500).json({
+        error: 'Failed to create application',
+        message: draftError.message,
+      });
+    }
+
+    // Upload all files and get their IDs (now the application_id exists)
     const fileIds = await processAllFiles(supabase, req.files, applicationId, userId);
 
     // Transform form data to database schema
     const applicationData = transformFormDataToSchema(formData, fileIds, userId);
-    applicationData.id = applicationId;
 
     // Hash SSN if provided
     if (formData.ssn) {
@@ -416,18 +435,19 @@ router.post('/', uploadFields, async (req, res) => {
     applicationData.submitted_at = new Date().toISOString();
     applicationData.status_changed_at = new Date().toISOString();
 
-    // Insert application into database
-    const { data: application, error: insertError } = await supabase
+    // Update application with full data (draft was created earlier)
+    const { data: application, error: updateError } = await supabase
       .from('applications')
-      .insert(applicationData)
+      .update(applicationData)
+      .eq('id', applicationId)
       .select()
       .single();
 
-    if (insertError) {
-      console.error('Application insert error:', insertError);
+    if (updateError) {
+      console.error('Application update error:', updateError);
       return res.status(500).json({
-        error: 'Failed to create application',
-        message: insertError.message,
+        error: 'Failed to submit application',
+        message: updateError.message,
       });
     }
 

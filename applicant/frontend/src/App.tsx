@@ -8,6 +8,7 @@ import { FormProvider } from './context/FormContext';
 // Lazy load all pages for better performance
 const Landing = lazy(() => import('./pages/Landing/Landing'));
 const AuthPage = lazy(() => import('./pages/Auth/Auth'));
+const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
 const UserFormPage = lazy(() => import('./pages/UserFormPage/UserFormPage'));
 
 function App() {
@@ -28,6 +29,11 @@ function App() {
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
               <Route path="/apply" element={
                 <ProtectedRoute>
                   <UserFormPage />
