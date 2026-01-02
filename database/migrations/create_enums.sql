@@ -20,6 +20,15 @@ CREATE TYPE review_status AS ENUM (
   'completed'    -- Reviewer has completed their review
 );
 
+-- Review recommendation enum (for assigned_applications)
+CREATE TYPE review_recommendation AS ENUM (
+  'approve',
+  'deny',
+  'request_more_info',
+  'escalate',
+  'needs_medical_review'
+);
+
 -- Direct deposit type enum
 CREATE TYPE direct_deposit_type AS ENUM ('domestic', 'international', 'none');
 

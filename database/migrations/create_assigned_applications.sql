@@ -40,24 +40,6 @@ CREATE TABLE assigned_applications (
   CONSTRAINT unique_reviewer_application UNIQUE (reviewer_id, application_id)
 );
 
--- First, create the enum for review recommendation
-DO $$ 
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'review_recommendation') THEN
-    CREATE TYPE review_recommendation AS ENUM (
-      'approve',
-      'deny', 
-      'request_more_info',
-      'escalate',
-      'needs_medical_review'
-    );
-  END IF;
-END $$;
-
--- Add the column if enum was just created
-ALTER TABLE assigned_applications 
-  ADD COLUMN IF NOT EXISTS recommendation review_recommendation;
-
 -- Indexes for common queries
 CREATE INDEX idx_assigned_applications_reviewer_id ON assigned_applications(reviewer_id);
 CREATE INDEX idx_assigned_applications_application_id ON assigned_applications(application_id);

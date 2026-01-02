@@ -1,16 +1,42 @@
+-- =====================================================
+-- App Secrets Table (for storing pepper securely)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS app_secrets (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+-- Enable RLS and lock it down completely
+ALTER TABLE app_secrets ENABLE ROW LEVEL SECURITY;
+
+-- Remove all public access - only SECURITY DEFINER functions can read it
+REVOKE ALL ON app_secrets FROM PUBLIC;
+REVOKE ALL ON app_secrets FROM authenticated;
+REVOKE ALL ON app_secrets FROM anon;
+
+-- Insert the pepper (CHANGE THIS VALUE IN PRODUCTION!)
+INSERT INTO app_secrets (key, value) 
+VALUES ('ssn_pepper', 'change-me-to-a-random-32-character-string')
+ON CONFLICT (key) DO NOTHING;
+
+-- =====================================================
+-- SSN Functions
+-- =====================================================
+
 -- Function to hash an SSN for storage
--- Uses SHA-256 with a pepper (additional secret)
+-- Uses SHA-256 with a pepper from app_secrets table
 CREATE OR REPLACE FUNCTION hash_ssn(ssn TEXT)
 RETURNS TEXT
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  -- Pepper should be stored in Supabase Vault or environment variables
-  -- This is a placeholder - in production, retrieve from secure storage
-  pepper TEXT := current_setting('app.ssn_pepper', true);
+  pepper TEXT;
   normalized_ssn TEXT;
 BEGIN
+  -- Read pepper from app_secrets table
+  SELECT value INTO pepper FROM app_secrets WHERE key = 'ssn_pepper';
+  
   -- Normalize SSN: remove dashes and spaces
   normalized_ssn := regexp_replace(ssn, '[^0-9]', '', 'g');
   
