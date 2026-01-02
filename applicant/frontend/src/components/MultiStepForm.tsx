@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { initialFormData } from '../types/form';
-import type { FormData } from '../types/form';
+import { useFormContext } from '../context/FormContext';
 import { stepSchemas } from '../schemas/formSchema';
 import { useToast } from './Toast';
+import { api } from '../services/api';
 
 // Import Steps
 import { Step1Personal } from './form/steps/Step1Personal';
@@ -37,30 +37,19 @@ const STEPS = [
 ];
 
 export default function MultiStepForm() {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<FormData>(initialFormData);
+  const {
+    formData,
+    updateFormData,
+    saveToLocalStorage,
+    clearFormData,
+    isLoaded,
+    currentStep,
+    setCurrentStep,
+    markStepCompleted,
+  } = useFormContext();
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
   const { showToast } = useToast();
-
-  // Load draft from localStorage on mount
-  useEffect(() => {
-    const savedData = localStorage.getItem('formDraft');
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        // Merge with initialFormData to ensure all fields exist
-        setFormData({ ...initialFormData, ...parsed });
-      } catch (e) {
-        console.error('Failed to load draft', e);
-      }
-    }
-    setIsLoaded(true);
-  }, []);
-
-  const updateFormData = (data: Partial<FormData>) => {
-    setFormData((prev) => ({ ...prev, ...data }));
-  };
 
   const nextStep = () => {
     const schema = stepSchemas[currentStep];
@@ -77,20 +66,29 @@ export default function MultiStepForm() {
       }
     }
 
+    // Mark current step as completed and save
+    markStepCompleted(currentStep);
+    saveToLocalStorage();
+
     if (currentStep < STEPS.length) {
-      setCurrentStep((prev) => prev + 1);
+      setCurrentStep(currentStep + 1);
       window.scrollTo(0, 0);
     }
   };
 
   const prevStep = () => {
+    // Save before going back
+    saveToLocalStorage();
+    
     if (currentStep > 1) {
-      setCurrentStep((prev) => prev - 1);
+      setCurrentStep(currentStep - 1);
       window.scrollTo(0, 0);
     }
   };
 
   const goToStep = (step: number) => {
+    // Save before navigating
+    saveToLocalStorage();
     setCurrentStep(step);
     window.scrollTo(0, 0);
   };
@@ -98,15 +96,21 @@ export default function MultiStepForm() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      console.log('Form Submitted', formData);
-      showToast('Application submitted successfully!', 'success');
-      localStorage.removeItem('formDraft');
-      // Redirect or show success message
+      // Submit the application (creates and submits in one call)
+      await api.submitApplication(formData);
+      
+      showToast('Application submitted successfully! You will receive a confirmation email shortly.', 'success');
+      
+      // Clear form data after successful submission
+      clearFormData();
+      
+      // Optionally redirect to a success page or dashboard
+      // window.location.href = '/dashboard';
+      
     } catch (error) {
       console.error('Submission failed', error);
-      showToast('Submission failed. Please try again.', 'error');
+      const errorMessage = error instanceof Error ? error.message : 'Submission failed. Please try again.';
+      showToast(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -131,7 +135,13 @@ export default function MultiStepForm() {
     }
   };
 
-  if (!isLoaded) return <div>Loading...</div>;
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">

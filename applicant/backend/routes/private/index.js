@@ -6,10 +6,12 @@ const express = require('express');
 const router = express.Router();
 
 const { authenticate } = require('../../middleware/auth');
+const applicationsRoutes = require('./applications');
 
 // Apply authentication middleware to all private routes
 router.use(authenticate);
 
-// Add private route modules here as needed
+// Application routes
+router.use('/applications', applicationsRoutes);
 
 module.exports = router;
