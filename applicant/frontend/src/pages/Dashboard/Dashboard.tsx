@@ -6,12 +6,17 @@ import MinimalNavbar from '../../components/MinimalNavbar';
 import { FileText, Plus, Clock, CheckCircle, XCircle, AlertCircle, LogOut } from 'lucide-react';
 
 interface ApplicationSummary {
-  application_id: string;
+  id?: string;
+  application_id?: string;
   status: string;
   created_at: string;
   applicant_name?: string;
   claude_recommendation?: string;
   final_decision?: string;
+}
+
+function getAppId(app: ApplicationSummary): string {
+  return app.application_id || app.id || 'unknown';
 }
 
 function getStatusIcon(status: string) {
@@ -169,7 +174,7 @@ export default function Dashboard() {
             <div className="space-y-4">
               {applications.map((app) => (
                 <div
-                  key={app.application_id}
+                  key={getAppId(app)}
                   className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start justify-between">
@@ -179,7 +184,7 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <h3 className="font-medium text-gray-900 mb-1">
-                          Application #{app.application_id.slice(0, 8)}
+                          Application #{getAppId(app).slice(0, 8)}
                         </h3>
                         {app.applicant_name && (
                           <p className="text-sm text-gray-600 mb-2">{app.applicant_name}</p>

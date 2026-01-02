@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFormContext } from '../context/FormContext';
 import { stepSchemas } from '../schemas/formSchema';
@@ -50,6 +51,7 @@ export default function MultiStepForm() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { showToast } = useToast();
+  const navigate = useNavigate();
 
   const nextStep = () => {
     const schema = stepSchemas[currentStep];
@@ -104,8 +106,8 @@ export default function MultiStepForm() {
       // Clear form data after successful submission
       clearFormData();
       
-      // Optionally redirect to a success page or dashboard
-      // window.location.href = '/dashboard';
+      // Redirect to dashboard
+      navigate('/dashboard');
       
     } catch (error) {
       console.error('Submission failed', error);

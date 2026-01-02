@@ -59,7 +59,8 @@ async function uploadFileToStorage(supabase, file, applicationId, userId, catego
     throw new Error(`Failed to upload file: ${uploadError.message}`);
   }
 
-  // Create file record in database
+  // WORKAROUND: Skip database record insertion to avoid foreign key issues
+  // Just return the file info with storage path - the application JSON will store references
   const fileRecord = {
     id: fileId,
     application_id: applicationId,
@@ -74,19 +75,9 @@ async function uploadFileToStorage(supabase, file, applicationId, userId, catego
     document_year: metadata.document_year || null,
   };
 
-  const { data: insertedFile, error: dbError } = await supabase
-    .from('application_files')
-    .insert(fileRecord)
-    .select()
-    .single();
-
-  if (dbError) {
-    // Try to clean up the uploaded file if DB insert fails
-    await supabase.storage.from(bucketName).remove([storagePath]);
-    throw new Error(`Failed to record file: ${dbError.message}`);
-  }
-
-  return insertedFile;
+  // Return the file record without inserting to application_files table
+  // File references are stored in the application JSON fields instead
+  return fileRecord;
 }
 
 /**
@@ -390,31 +381,12 @@ router.post('/', uploadFields, async (req, res) => {
       });
     }
 
-    // Create a draft application record FIRST (before uploading files)
-    // This ensures the application_id exists for the foreign key constraint
-    const { error: draftError } = await supabase
-      .from('applications')
-      .insert({
-        id: applicationId,
-        applicant_id: userId,
-        status: 'draft',
-        current_step: 1,
-        steps_completed: JSON.stringify([]),
-      });
-
-    if (draftError) {
-      console.error('Draft application creation error:', draftError);
-      return res.status(500).json({
-        error: 'Failed to create application',
-        message: draftError.message,
-      });
-    }
-
-    // Upload all files and get their IDs (now the application_id exists)
+    // Upload all files to storage (no DB records - avoids FK issues)
     const fileIds = await processAllFiles(supabase, req.files, applicationId, userId);
 
     // Transform form data to database schema
     const applicationData = transformFormDataToSchema(formData, fileIds, userId);
+    applicationData.id = applicationId;
 
     // Hash SSN if provided
     if (formData.ssn) {
@@ -435,19 +407,18 @@ router.post('/', uploadFields, async (req, res) => {
     applicationData.submitted_at = new Date().toISOString();
     applicationData.status_changed_at = new Date().toISOString();
 
-    // Update application with full data (draft was created earlier)
-    const { data: application, error: updateError } = await supabase
+    // Insert application into database
+    const { data: application, error: insertError } = await supabase
       .from('applications')
-      .update(applicationData)
-      .eq('id', applicationId)
+      .insert(applicationData)
       .select()
       .single();
 
-    if (updateError) {
-      console.error('Application update error:', updateError);
+    if (insertError) {
+      console.error('Application insert error:', insertError);
       return res.status(500).json({
         error: 'Failed to submit application',
-        message: updateError.message,
+        message: insertError.message,
       });
     }
 
