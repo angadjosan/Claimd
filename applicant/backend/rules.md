@@ -1,1 +1,0 @@
-markdown file of rules that we can give to the AI for citation. it chunks/cites by specific rule. This is how it evaluates.
