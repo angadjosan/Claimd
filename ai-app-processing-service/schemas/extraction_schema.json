@@ -1,6 +1,6 @@
 {
   "document_metadata": {
-    "total_pages_processed": number,
+    "total_pages_processed": 0,
     "document_types_identified": ["Social Security Statement", "MRI Report", "W-2 Form"]
   },
   "administrative_data": {
@@ -11,8 +11,8 @@
     },
     "earnings_record": [
       {
-        "year": number,
-        "amount": number,
+        "year": 0,
+        "amount": 0,
         "source_document": "W-2 | SSA Statement"
       }
     ],
@@ -22,7 +22,7 @@
       "service_dates": "string"
     },
     "workers_comp": {
-      "receiving_benefits": boolean,
+      "receiving_benefits": true,
       "amount": "string",
       "details": "string"
     }
@@ -33,7 +33,7 @@
         "condition": "string",
         "icd_10": "string",
         "date_noted": "YYYY-MM-DD",
-        "source_page": number
+        "source_page": 0
       }
     ],
     "objective_findings": [

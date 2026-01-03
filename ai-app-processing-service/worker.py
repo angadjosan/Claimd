@@ -22,7 +22,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
-claude_model = "claude-3-5-sonnet-20241022"
+claude_model = "claude-sonnet-4-5"
     
 if not SUPABASE_URL or not SUPABASE_KEY:
     logger.error("SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set.")
