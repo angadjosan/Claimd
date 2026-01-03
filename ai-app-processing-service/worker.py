@@ -129,8 +129,6 @@ def extractor_call(pdfs, extraction_schema, extractor_prompt):
         "text": f"{extractor_prompt}\n\n This is extraction_schema.json: {json.dumps(extraction_schema, indent=2)}"
     })
 
-    print(content)
-
     messages = [
         {
             "role": "user",
@@ -149,7 +147,6 @@ def extractor_call(pdfs, extraction_schema, extractor_prompt):
             )
             # Extract JSON from response
             response_text = response.content[0].text
-            print(response_text)
             # Simple heuristic to find JSON start/end if wrapped in markdown
             if "```json" in response_text:
                 json_str = response_text.split("```json")[1].split("```")[0].strip()
@@ -172,12 +169,13 @@ def extractor_call(pdfs, extraction_schema, extractor_prompt):
                 raise
             time.sleep(1)  # Brief delay before retry
 
-def reasoning_call(extraction_schema, extractor_output, application_schema, application_data, reasoning_prompt, rules, reasoning_output_schema):
+def reasoning_call(extraction_schema, extractor_output, application_schema, application_data, reasoning_prompt, rules, reasoning_output_schema, has_extraction_output):
     """
     Calls Anthropic API to reason about the application.
     """
     logger.info("Calling Reasoning AI...")
     
+    # Build prompt conditionally based on whether extraction output exists
     prompt_text = f"""
     {reasoning_prompt}
     
@@ -190,11 +188,18 @@ def reasoning_call(extraction_schema, extractor_output, application_schema, appl
 
     Application Data:
     {json.dumps(application_data, indent=2)}
-    Extracted Data:
-    {json.dumps(extractor_output, indent=2)}
     rules.md:
     {rules}
     """
+    
+    if has_extraction_output:
+        prompt_text += f"""
+    Extracted Data:
+    {json.dumps(extractor_output, indent=2)}"""
+    else:
+        prompt_text += f"""
+    Extracted Data:
+    No additional documents were uploaded - please review the application data and make a decision based on the information provided."""
 
     messages = [
         {
@@ -239,21 +244,21 @@ def ai(application_id):
     application_schema, extraction_schema, reasoning_output_schema = load_local_schemas()
     application_data, application_docs = load_from_supabase(application_id)
 
-    # Pass the correct arguments
-    # Wait for extractor_call to fully complete before proceeding
-    extractor_output = extractor_call(application_docs, extraction_schema, extractor_prompt)
+    # Check if there are any documents to process
+    if not application_docs:
+        logger.info("No documents found. Skipping extractor call and proceeding directly to reasoning call.")
+        extractor_output = None
+        has_extraction_output = False
+    else:
+        logger.info(f"Found {len(application_docs)} document(s). Running extractor call...")
+        extractor_output = extractor_call(application_docs, extraction_schema, extractor_prompt)
+        logger.info("Extractor call completed successfully.")
+        has_extraction_output = True
     
-    # Validate that extractor_output was successfully obtained before proceeding
-    if extractor_output is None:
-        raise Exception("extractor_call returned None - extraction failed")
-    
-    logger.info("Extractor call completed successfully. Proceeding to reasoning call...")
-    
-    # Pass the correct arguments
-    # Only call reasoning_call after extractor_call has fully completed
+    logger.info("Proceeding to reasoning call...")
     reasoning_output = reasoning_call(
         extraction_schema, extractor_output, application_schema, application_data, 
-        reasoning_prompt, rules, reasoning_output_schema
+        reasoning_prompt, rules, reasoning_output_schema, has_extraction_output
     )
     
     # Ensure required fields from reasoning_output_schema are populated
