@@ -155,7 +155,9 @@ def extractor_call(pdfs, extraction_schema, extractor_prompt):
             else:
                 json_str = response_text
 
-            return json.loads(json_str)
+            result = json.loads(json_str)
+            logger.info("Extractor call completed successfully")
+            return result
             
         except json.JSONDecodeError as e:
             logger.warning(f"JSON decode error on attempt {attempt + 1}: {e}")
@@ -234,9 +236,17 @@ def ai(application_id):
     application_data, application_docs = load_from_supabase(application_id)
 
     # Pass the correct arguments
+    # Wait for extractor_call to fully complete before proceeding
     extractor_output = extractor_call(application_docs, extraction_schema, extractor_prompt)
     
+    # Validate that extractor_output was successfully obtained before proceeding
+    if extractor_output is None:
+        raise Exception("extractor_call returned None - extraction failed")
+    
+    logger.info("Extractor call completed successfully. Proceeding to reasoning call...")
+    
     # Pass the correct arguments
+    # Only call reasoning_call after extractor_call has fully completed
     reasoning_output = reasoning_call(
         extraction_schema, extractor_output, application_schema, application_data, 
         reasoning_prompt, rules, reasoning_output_schema
