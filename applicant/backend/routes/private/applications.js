@@ -443,7 +443,7 @@ router.post('/', uploadFields, async (req, res) => {
       .from('processing_queue')
       .insert({
         application_id: applicationId,
-        task_type: 'process_app',
+        task_type: 'ai',
         payload: { application_id: applicationId },
         status: 'pending',
       });
