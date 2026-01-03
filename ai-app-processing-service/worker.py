@@ -178,8 +178,6 @@ def reasoning_call(extraction_schema, extractor_output, application_schema, appl
     prompt_text = f"""
     {reasoning_prompt}
     
-    rules.md:
-    {rules}
     application_schema.json:
     {json.dumps(application_schema, indent=2)}
     extraction_schema.json:
@@ -191,6 +189,8 @@ def reasoning_call(extraction_schema, extractor_output, application_schema, appl
     {json.dumps(application_data, indent=2)}
     Extracted Data:
     {json.dumps(extractor_output, indent=2)}
+    rules.md:
+    {rules}
     """
 
     messages = [

@@ -438,6 +438,21 @@ router.post('/', uploadFields, async (req, res) => {
       // Non-fatal, continue
     }
 
+    // Add application to processing queue for AI processing
+    const { error: queueError } = await supabase
+      .from('processing_queue')
+      .insert({
+        application_id: applicationId,
+        task_type: 'process_app',
+        payload: { application_id: applicationId },
+        status: 'pending',
+      });
+
+    if (queueError) {
+      console.error('Queue insert error:', queueError);
+      // Non-fatal, continue - application was created successfully
+    }
+
     res.status(201).json({
       success: true,
       data: {
