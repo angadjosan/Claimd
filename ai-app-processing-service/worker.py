@@ -2,9 +2,8 @@ import os
 import time
 import json
 import logging
-import psycopg2
-from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
+from supabase import create_client, Client
 
 # Load environment variables
 load_dotenv()
@@ -16,21 +15,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Database configuration
-DB_URL = os.getenv("DATABASE_URL")
+# Supabase configuration
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") # Use Service Key for backend workers
 
-if not DB_URL:
-    logger.error("DATABASE_URL environment variable is not set.")
+if not SUPABASE_URL or not SUPABASE_KEY:
+    logger.error("SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set.")
     exit(1)
 
-def get_db_connection():
-    """Establishes a connection to the database."""
-    try:
-        conn = psycopg2.connect(DB_URL)
-        return conn
-    except Exception as e:
-        logger.error(f"Error connecting to database: {e}")
-        return None
+# Initialize Supabase client
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def process_task(task):
     """
@@ -46,8 +40,11 @@ def process_task(task):
     # Simulate processing time
     time.sleep(2)
     
-    # TODO: Implement actual logic here based on task_type
-    # e.g., call OpenAI, run extraction, etc.
+    # AI call
+
+    # TODO: later
+    ## black-out algorithm (PDF parsing), verification that no SSNs passed in. 
+    ## orchestration - assigns, etc
     
     if task_type == 'fail_test':
         raise Exception("Simulated failure")
@@ -60,79 +57,48 @@ def worker_loop():
     logger.info("Worker started. Waiting for tasks...")
     
     while True:
-        conn = get_db_connection()
-        if not conn:
-            time.sleep(5)
-            continue
-            
         try:
-            with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                # 1. Fetch next pending task and lock it
-                # SKIP LOCKED ensures multiple workers don't pick the same task
-                cursor.execute("""
-                    SELECT id, task_type, payload 
-                    FROM processing_queue 
-                    WHERE status = 'pending' 
-                    ORDER BY created_at ASC 
-                    LIMIT 1 
-                    FOR UPDATE SKIP LOCKED
-                """)
+            # 1. Fetch next pending task using RPC
+            # We use an RPC call because Supabase client doesn't support 'FOR UPDATE SKIP LOCKED' directly
+            response = supabase.rpc('fetch_next_task', {}).execute()
+            
+            tasks = response.data
+            
+            if not tasks:
+                # No tasks, sleep and retry
+                time.sleep(5) # Poll interval
+                continue
+            
+            task = tasks[0]
+            task_id = task['id']
+            
+            # 2. Process the task
+            try:
+                result = process_task(task)
                 
-                task = cursor.fetchone()
+                # 3. Mark as completed
+                # Note: We merge the result into the existing payload
+                current_payload = task['payload'] or {}
+                current_payload['result'] = result
                 
-                if not task:
-                    # No tasks, sleep and retry
-                    conn.commit() # Release any potential locks (though none here)
-                    conn.close()
-                    time.sleep(5) # Poll interval
-                    continue
+                supabase.table('processing_queue').update({
+                    'status': 'completed',
+                    'updated_at': 'now()',
+                    'payload': current_payload
+                }).eq('id', task_id).execute()
                 
-                task_id = task['id']
-                
-                # 2. Mark as processing
-                cursor.execute("""
-                    UPDATE processing_queue 
-                    SET status = 'processing', 
-                        locked_at = NOW(), 
-                        updated_at = NOW(),
-                        attempts = attempts + 1
-                    WHERE id = %s
-                """, (task_id,))
-                conn.commit()
-                
-                # 3. Process the task
-                try:
-                    result = process_task(task)
-                    
-                    # 4. Mark as completed
-                    cursor.execute("""
-                        UPDATE processing_queue 
-                        SET status = 'completed', 
-                            updated_at = NOW(),
-                            payload = payload || %s::jsonb
-                        WHERE id = %s
-                    """, (json.dumps({"result": result}), task_id))
-                    conn.commit()
-                    
-                except Exception as e:
-                    logger.error(f"Error processing task {task_id}: {e}")
-                    # 5. Handle failure
-                    cursor.execute("""
-                        UPDATE processing_queue 
-                        SET status = 'failed', 
-                            last_error = %s, 
-                            updated_at = NOW() 
-                        WHERE id = %s
-                    """, (str(e), task_id))
-                    conn.commit()
+            except Exception as e:
+                logger.error(f"Error processing task {task_id}: {e}")
+                # 4. Handle failure
+                supabase.table('processing_queue').update({
+                    'status': 'failed',
+                    'last_error': str(e),
+                    'updated_at': 'now()'
+                }).eq('id', task_id).execute()
                     
         except Exception as e:
             logger.error(f"Unexpected error in worker loop: {e}")
-            if conn:
-                conn.rollback()
-        finally:
-            if conn:
-                conn.close()
+            time.sleep(5) # Sleep on error to avoid tight loops
 
 if __name__ == "__main__":
     worker_loop()
