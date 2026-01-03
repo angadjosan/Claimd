@@ -1,0 +1,64 @@
+{
+  "document_metadata": {
+    "total_pages_processed": number,
+    "document_types_identified": ["Social Security Statement", "MRI Report", "W-2 Form"]
+  },
+  "administrative_data": {
+    "identity": {
+      "name_on_document": "string",
+      "dob": "YYYY-MM-DD",
+      "citizenship_status": "string"
+    },
+    "earnings_record": [
+      {
+        "year": number,
+        "amount": number,
+        "source_document": "W-2 | SSA Statement"
+      }
+    ],
+    "military_history": {
+      "branch": "string",
+      "discharge_status": "string",
+      "service_dates": "string"
+    },
+    "workers_comp": {
+      "receiving_benefits": boolean,
+      "amount": "string",
+      "details": "string"
+    }
+  },
+  "medical_evidence": {
+    "diagnoses": [
+      {
+        "condition": "string",
+        "icd_10": "string",
+        "date_noted": "YYYY-MM-DD",
+        "source_page": number
+      }
+    ],
+    "objective_findings": [
+      {
+        "date": "YYYY-MM-DD",
+        "type": "IMAGING | LAB | PHYSICAL_EXAM | MENTAL_STATUS",
+        "description": "string",
+        "significance": "NORMAL | ABNORMAL | CRITICAL",
+        "source_snippet": "exact quote"
+      }
+    ],
+    "functional_limitations": [
+      {
+        "category": "EXERTIONAL | POSTURAL | MENTAL",
+        "description": "string",
+        "source_snippet": "exact quote"
+      }
+    ],
+    "treatment_history": [
+      {
+        "date": "YYYY-MM-DD",
+        "type": "SURGERY | MEDICATION | THERAPY",
+        "description": "string",
+        "response": "string"
+      }
+    ]
+  }
+}
