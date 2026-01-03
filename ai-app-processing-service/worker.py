@@ -22,7 +22,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
-claude_model = "claude-sonnet-4-5"
+claude_model = "claude-haiku-4-5-20251001"
     
 if not SUPABASE_URL or not SUPABASE_KEY:
     logger.error("SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set.")
@@ -129,6 +129,8 @@ def extractor_call(pdfs, extraction_schema, extractor_prompt):
         "text": f"{extractor_prompt}\n\n This is extraction_schema.json: {json.dumps(extraction_schema, indent=2)}"
     })
 
+    print(content)
+
     messages = [
         {
             "role": "user",
@@ -141,12 +143,13 @@ def extractor_call(pdfs, extraction_schema, extractor_prompt):
     for attempt in range(max_retries):
         try:
             response = anthropic_client.messages.create(
-                model=claude_model,
-                messages=messages
+                max_tokens=16000,
+                messages=messages,
+                model=claude_model
             )
-            
             # Extract JSON from response
             response_text = response.content[0].text
+            print(response_text)
             # Simple heuristic to find JSON start/end if wrapped in markdown
             if "```json" in response_text:
                 json_str = response_text.split("```json")[1].split("```")[0].strip()
@@ -206,7 +209,8 @@ def reasoning_call(extraction_schema, extractor_output, application_schema, appl
         try:
             response = anthropic_client.messages.create(
                 model=claude_model,
-                messages=messages
+                messages=messages,
+                max_tokens=16000  # Reasoning output can be longer with phases analysis
             )
             
             # Extract JSON from response
