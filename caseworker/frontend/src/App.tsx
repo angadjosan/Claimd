@@ -7,6 +7,8 @@ import { ToastProvider } from './components/Toast';
 
 // Lazy load all pages for better performance
 const AuthPage = lazy(() => import('./pages/Auth/Auth'));
+const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
+const ApplicationDetail = lazy(() => import('./pages/Dashboard/ApplicationDetail'));
 
 function App() {
   return (
@@ -25,7 +27,22 @@ function App() {
             <Routes>
               <Route path="/" element={<RootRedirect />} />
               <Route path="/auth" element={<AuthPage />} />
-              {/* Add caseworker-specific routes here */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/applications/:id"
+                element={
+                  <ProtectedRoute>
+                    <ApplicationDetail />
+                  </ProtectedRoute>
+                }
+              />
             </Routes>
           </Suspense>
         </div>
