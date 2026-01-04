@@ -457,7 +457,7 @@ router.patch('/applications/:id/reviewer-notes', async (req, res) => {
 
 /**
  * POST /api/private/dashboard/applications/:id/recommendation
- * Submit a recommendation for an application
+ * Submit a recommendation for an application (transactional via DB function)
  */
 router.post('/applications/:id/recommendation', async (req, res) => {
   try {
@@ -482,53 +482,46 @@ router.post('/applications/:id/recommendation', async (req, res) => {
       });
     }
 
-    // Verify assignment
-    const { data: assignment, error: assignmentError } = await supabase
-      .from('assigned_applications')
-      .select('*')
-      .eq('application_id', applicationId)
-      .eq('reviewer_id', userDbId)
-      .single();
-
-    if (assignmentError || !assignment) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'This application is not assigned to you'
+    // Use database function for transactional recommendation submission
+    // This ensures all updates happen atomically
+    const { data: updatedAssignment, error: functionError } = await supabase
+      .rpc('submit_recommendation', {
+        p_application_id: applicationId,
+        p_reviewer_id: userDbId,
+        p_recommendation: recommendation,
+        p_recommendation_notes: recommendation_notes || null
       });
-    }
 
-    // Update assignment with recommendation
-    const updateData = {
-      recommendation,
-      recommendation_notes: recommendation_notes || null,
-      review_status: 'completed',
-      completed_at: new Date().toISOString(),
-      last_accessed_at: new Date().toISOString()
-    };
+    if (functionError) {
+      console.error('Recommendation submission error:', functionError);
+      
+      // Handle specific error cases
+      if (functionError.message.includes('not assigned')) {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'This application is not assigned to you'
+        });
+      }
+      
+      if (functionError.message.includes('not found')) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Application not found'
+        });
+      }
 
-    // Set first_opened_at if not already set
-    if (!assignment.first_opened_at) {
-      updateData.first_opened_at = new Date().toISOString();
-    }
-
-    const { data: updatedAssignment, error: updateError } = await supabase
-      .from('assigned_applications')
-      .update(updateData)
-      .eq('id', assignment.id)
-      .select()
-      .single();
-
-    if (updateError) {
-      console.error('Recommendation submission error:', updateError);
       return res.status(500).json({
         error: 'Failed to submit recommendation',
-        message: updateError.message
+        message: functionError.message
       });
     }
 
-    // Optionally update application status based on recommendation
-    // (This could be handled by a database trigger or separate admin action)
-    // For now, we'll just return the updated assignment
+    if (!updatedAssignment) {
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'Failed to submit recommendation'
+      });
+    }
 
     res.json({
       success: true,

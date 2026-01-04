@@ -186,8 +186,80 @@ BEGIN
 END;
 $$;
 
+-- Function to submit a recommendation (transactional)
+CREATE OR REPLACE FUNCTION submit_recommendation(
+  p_application_id UUID,
+  p_reviewer_id UUID,
+  p_recommendation review_recommendation,
+  p_recommendation_notes TEXT DEFAULT NULL
+)
+RETURNS assigned_applications
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_assignment assigned_applications;
+  v_application applications;
+  v_old_status application_status;
+BEGIN
+  -- Verify assignment exists and belongs to reviewer
+  SELECT * INTO v_assignment
+  FROM assigned_applications
+  WHERE application_id = p_application_id
+    AND reviewer_id = p_reviewer_id;
+  
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Application is not assigned to this reviewer';
+  END IF;
+  
+  -- Get current application status
+  SELECT status INTO v_old_status
+  FROM applications
+  WHERE id = p_application_id;
+  
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Application not found';
+  END IF;
+  
+  -- Update assigned_applications with recommendation (transactional)
+  UPDATE assigned_applications
+  SET 
+    recommendation = p_recommendation,
+    recommendation_notes = p_recommendation_notes,
+    review_status = 'completed',
+    completed_at = NOW(),
+    last_accessed_at = NOW(),
+    first_opened_at = COALESCE(first_opened_at, NOW()),
+    updated_at = NOW()
+  WHERE id = v_assignment.id
+  RETURNING * INTO v_assignment;
+  
+  -- Record recommendation in application status history
+  INSERT INTO application_status_history (
+    application_id,
+    previous_status,
+    new_status,
+    changed_by,
+    notes
+  ) VALUES (
+    p_application_id,
+    v_old_status,
+    v_old_status, -- Status doesn't change automatically, just recording the recommendation
+    p_reviewer_id,
+    'Reviewer recommendation: ' || p_recommendation || 
+    CASE WHEN p_recommendation_notes IS NOT NULL 
+      THEN E'\nNotes: ' || p_recommendation_notes 
+      ELSE '' 
+    END
+  );
+  
+  RETURN v_assignment;
+END;
+$$;
+
 -- Grant execute permissions
 GRANT EXECUTE ON FUNCTION update_application_status TO authenticated;
 GRANT EXECUTE ON FUNCTION submit_application TO authenticated;
 GRANT EXECUTE ON FUNCTION assign_reviewer TO authenticated;
 GRANT EXECUTE ON FUNCTION update_review_status TO authenticated;
+GRANT EXECUTE ON FUNCTION submit_recommendation TO authenticated;
