@@ -31,10 +31,10 @@ create type "public"."user_role" as enum ('applicant', 'administrator', 'casewor
 create type "public"."workers_comp_proof_type" as enum ('award_letter', 'pay_stub', 'settlement_agreement', 'other');
 
 
-  create table "public"."app_secrets" (
-    "key" text not null,
-    "value" text not null
-      );
+create table "public"."app_secrets" (
+ "key" text not null,
+  "value" text not null
+  );
 
 
 alter table "public"."app_secrets" enable row level security;
