@@ -1,7 +1,8 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
+import RootRedirect from './components/RootRedirect';
 import { ToastProvider } from './components/Toast';
 import { FormProvider } from './context/FormContext';
 
@@ -26,7 +27,7 @@ function App() {
             </div>
           }>
             <Routes>
-              <Route path="/" element={<Navigate to="/auth" replace />} />
+              <Route path="/" element={<RootRedirect />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/dashboard" element={
                 <ProtectedRoute>
