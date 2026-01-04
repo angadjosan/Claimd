@@ -9,7 +9,7 @@ const publicRoutes = require('./routes/public');
 const privateRoutes = require('./routes/private');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
 // ============================================
 // Supabase Client Configuration
@@ -38,7 +38,7 @@ app.set('supabase', supabase);
 // ============================================
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5191',
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));

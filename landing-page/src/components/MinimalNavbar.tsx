@@ -2,6 +2,7 @@ import './MinimalNavbar.css';
 
 const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:5190';
 const APPLICANT_URL = import.meta.env.VITE_APPLICANT_URL || 'http://localhost:5173';
+const CASEWORKER_URL = import.meta.env.VITE_CASEWORKER_URL || 'http://localhost:5191';
 
 export default function MinimalNavbar() {
   return (
@@ -26,6 +27,12 @@ export default function MinimalNavbar() {
               className="text-sm text-gray-900 border border-gray-900 px-4 py-2 rounded-full hover:bg-gray-900 hover:text-white transition-all duration-200"
             >
               Dashboard
+            </a>
+            <a 
+              href={`${CASEWORKER_URL}/dashboard`}
+              className="text-sm text-gray-900 border border-gray-900 px-4 py-2 rounded-full hover:bg-gray-900 hover:text-white transition-all duration-200"
+            >
+              Caseworker Portal
             </a>
           </div>
         </div>
