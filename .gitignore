@@ -46,3 +46,5 @@ backend/local_storage/pdfs/**/*.pdf
 # Logs
 *.log
 logs/
+
+.start_pids
