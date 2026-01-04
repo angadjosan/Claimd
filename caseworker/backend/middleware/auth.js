@@ -100,11 +100,11 @@ const requireRole = (allowedRoles) => {
     try {
       const supabase = req.app.get('supabase');
       
-      // Fetch user role from your users table
+      // Fetch user role from your users table using auth_id
       const { data: userData, error } = await supabase
         .from('users')
-        .select('role')
-        .eq('id', req.user.id)
+        .select('role, id')
+        .eq('auth_id', req.user.id)
         .single();
 
       if (error || !userData) {
@@ -122,6 +122,7 @@ const requireRole = (allowedRoles) => {
       }
 
       req.userRole = userData.role;
+      req.userDbId = userData.id; // Store database user ID for queries
       next();
     } catch (error) {
       console.error('Role check error:', error);
