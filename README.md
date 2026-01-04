@@ -497,17 +497,9 @@ supabase start
 supabase db reset
 
 # Verify the migration was applied correctly
-supabase db diff
-```
+supabase migration list
 
-#### 4. Commit and push
-
-Once validated locally:
-
-```bash
-git add supabase/migrations/<timestamp>_add_xyz.sql
-git commit -m "Add migration: add_xyz"
-git push
+# Then, commit to github
 ```
 
 ### CI/CD Pipeline

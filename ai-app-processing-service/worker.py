@@ -337,12 +337,27 @@ def assign_case_to_caseworker(application_id):
     
     # Assign the application using the assign_reviewer function
     # p_assigned_by is optional (defaults to NULL for system assignments)
+    # Note: This requires migration 20260104230015_add_caseworker_assigns.sql.sql to be applied
     try:
-        assignment_response = supabase.rpc('assign_reviewer', {
-            'p_application_id': application_id,
-            'p_reviewer_id': selected_caseworker_id,
-            'p_priority': 0
-        }).execute()
+        # Try calling without p_assigned_by first (after migration)
+        try:
+            assignment_response = supabase.rpc('assign_reviewer', {
+                'p_application_id': application_id,
+                'p_reviewer_id': selected_caseworker_id,
+                'p_priority': 0
+            }).execute()
+        except Exception as e:
+            # Fallback: if migration not applied, try with NULL assigned_by
+            if 'p_assigned_by' in str(e) or 'missing' in str(e).lower():
+                logger.warning("Migration may not be applied, trying with explicit NULL for p_assigned_by")
+                assignment_response = supabase.rpc('assign_reviewer', {
+                    'p_application_id': application_id,
+                    'p_reviewer_id': selected_caseworker_id,
+                    'p_assigned_by': None,
+                    'p_priority': 0
+                }).execute()
+            else:
+                raise
         
         if assignment_response.data:
             logger.info(f"Successfully assigned application {application_id} to caseworker {selected_caseworker_id}")
