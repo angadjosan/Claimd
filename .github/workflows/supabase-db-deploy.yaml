@@ -27,6 +27,14 @@ jobs:
         run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      
+      - name: Debug - show working dir and migrations
+        run: |
+          pwd
+          ls -la
+          find . -maxdepth 3 -type f -name "config.toml" -o -path "*supabase/migrations/*" | head -n 200
+          ls -la supabase || true
+          ls -la supabase/migrations || true
 
       - name: Push migrations to remote
         run: supabase db push
