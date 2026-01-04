@@ -324,8 +324,13 @@ def process_task(task):
         logger.warning(f"No application_id provided in task {task_id}")
 
     # TODO: later
+    ## https://platform.claude.com/docs/en/build-with-claude/batch-processing
+    ## https://platform.claude.com/docs/en/build-with-claude/citations. For PDFs: citations will include the page number range (1-indexed).
     ## black-out algorithm (PDF parsing), verification that no SSNs passed in. 
     ## orchestration - assigns, etc
+    ## https://platform.claude.com/docs/en/build-with-claude/effort
+    ## https://platform.claude.com/docs/en/build-with-claude/extended-thinking
+    
     
     if task_type == 'fail_test':
         raise Exception("Simulated failure")
