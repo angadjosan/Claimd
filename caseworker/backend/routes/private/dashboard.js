@@ -54,6 +54,7 @@ router.get('/applications', async (req, res) => {
         completed_at,
         recommendation,
         application_id,
+        assigned_by,
         applications (
           id,
           status,
@@ -62,6 +63,7 @@ router.get('/applications', async (req, res) => {
           updated_at,
           reasoning_overall_recommendation,
           reasoning_confidence_score,
+          reasoning_summary,
           applicant_id,
           users!applications_applicant_id_fkey (
             id,
@@ -97,6 +99,7 @@ router.get('/applications', async (req, res) => {
       priority: assignment.priority,
       due_date: assignment.due_date,
       assigned_at: assignment.assigned_at,
+      assigned_by: assignment.assigned_by,
       first_opened_at: assignment.first_opened_at,
       last_accessed_at: assignment.last_accessed_at,
       completed_at: assignment.completed_at,
@@ -105,7 +108,8 @@ router.get('/applications', async (req, res) => {
       created_at: assignment.applications.created_at,
       updated_at: assignment.applications.updated_at,
       ai_recommendation: assignment.applications.reasoning_overall_recommendation,
-      ai_confidence: assignment.applications.reasoning_confidence_score
+      ai_confidence: assignment.applications.reasoning_confidence_score,
+      ai_summary: assignment.applications.reasoning_summary
     }));
 
     res.json({
@@ -155,7 +159,26 @@ router.get('/applications/:id', async (req, res) => {
       });
     }
 
+    // Get assigned_by user info if exists
+    let assignedByUser = null;
+    if (assignment.assigned_by) {
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, email')
+        .eq('id', assignment.assigned_by)
+        .single();
+      
+      if (!userError && user) {
+        assignedByUser = {
+          id: user.id,
+          name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
+          email: user.email
+        };
+      }
+    }
+
     // Get the full application with applicant info
+    // Include all AI reasoning fields and supporting data
     const { data: application, error: applicationError } = await supabase
       .from('applications')
       .select(`
@@ -198,22 +221,74 @@ router.get('/applications/:id', async (req, res) => {
         .eq('id', assignment.id);
     }
 
-    // Format the response
-    const response = {
-      application: {
-        ...application,
-        applicant: application.users
-      },
-      assignment: {
-        ...assignment,
-        // Re-fetch to get updated timestamps
-        first_opened_at: assignment.first_opened_at || new Date().toISOString(),
-        last_accessed_at: new Date().toISOString()
-      }
+    // Extract AI reasoning data for easier frontend consumption
+    const aiReasoning = {
+      overall_recommendation: application.reasoning_overall_recommendation,
+      confidence_score: application.reasoning_confidence_score,
+      summary: application.reasoning_summary,
+      phases: application.reasoning_phases || null,
+      missing_information: application.reasoning_missing_information || [],
+      suggested_actions: application.reasoning_suggested_actions || []
     };
 
-    // Remove the nested users object
-    delete response.application.users;
+    // Format the response according to data_mapping.md structure
+    const response = {
+      // Header / Applicant Summary
+      applicant: {
+        id: application.users.id,
+        first_name: application.users.first_name,
+        last_name: application.users.last_name,
+        name: `${application.users.first_name || ''} ${application.users.last_name || ''}`.trim(),
+        email: application.users.email,
+        phone_number: application.users.phone_number
+      },
+      application: {
+        id: application.id,
+        status: application.status,
+        submitted_at: application.submitted_at,
+        created_at: application.created_at,
+        updated_at: application.updated_at,
+        // AI Reasoning - Header fields
+        ai_recommendation: application.reasoning_overall_recommendation,
+        ai_confidence: application.reasoning_confidence_score,
+        ai_summary: application.reasoning_summary,
+        // AI Reasoning - Phases (for progress tracker and detailed views)
+        ai_phases: application.reasoning_phases || null,
+        // AI Reasoning - Recommendations
+        ai_missing_information: application.reasoning_missing_information || [],
+        ai_suggested_actions: application.reasoning_suggested_actions || [],
+        // Supporting data for phase analysis
+        birthdate: application.birthdate,
+        date_condition_began_affecting_work: application.date_condition_began_affecting_work,
+        earnings_history: application.earnings_history || [],
+        employment_history: application.employment_history || [],
+        conditions: application.conditions || [],
+        functional_limitations: application.functional_limitations || null,
+        healthcare_providers: application.healthcare_providers || [],
+        medical_tests: application.medical_tests || [],
+        evidence_documents: application.evidence_documents || [],
+        education: application.education || [],
+        job_training: application.job_training || []
+      },
+      // Assignment / Review data
+      assignment: {
+        id: assignment.id,
+        review_status: assignment.review_status,
+        recommendation: assignment.recommendation,
+        reviewer_notes: assignment.reviewer_notes,
+        recommendation_notes: assignment.recommendation_notes,
+        priority: assignment.priority,
+        due_date: assignment.due_date,
+        assigned_by: assignment.assigned_by,
+        assigned_by_user: assignedByUser,
+        assigned_at: assignment.assigned_at,
+        first_opened_at: assignment.first_opened_at || new Date().toISOString(),
+        last_accessed_at: new Date().toISOString(),
+        completed_at: assignment.completed_at
+      },
+      // Convenience field for AI reasoning (structured)
+      ai_reasoning: aiReasoning
+    };
 
     res.json({
       success: true,
