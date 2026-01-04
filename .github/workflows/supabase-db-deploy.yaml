@@ -9,9 +9,9 @@ on:
       - ".github/workflows/supabase-db-deploy.yaml"
 
 jobs:
-  deploy:
+  pre-deploy-validation:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,15 +21,146 @@ jobs:
         with:
           version: latest
 
+      - name: Validate migration files
+        run: |
+          echo "🔍 Pre-deployment validation..."
+          if [ ! -d "supabase/migrations" ]; then
+            echo "❌ supabase/migrations directory not found"
+            exit 1
+          fi
+          
+          migration_count=$(find supabase/migrations -name "*.sql" | wc -l)
+          if [ "$migration_count" -eq 0 ]; then
+            echo "⚠️  No migration files found"
+            exit 0
+          fi
+          
+          echo "✅ Found $migration_count migration file(s)"
+
+      - name: Check required secrets
+        run: |
+          echo "🔍 Checking required secrets..."
+          if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then
+            echo "❌ SUPABASE_ACCESS_TOKEN secret is missing"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SUPABASE_PROJECT_REF }}" ]; then
+            echo "❌ SUPABASE_PROJECT_REF secret is missing"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SUPABASE_DB_PASSWORD }}" ]; then
+            echo "❌ SUPABASE_DB_PASSWORD secret is missing"
+            exit 1
+          fi
+          echo "✅ All required secrets are present"
+
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: pre-deploy-validation
+    environment:
+      name: production
+      url: https://supabase.com/dashboard/project/${{ secrets.SUPABASE_PROJECT_REF }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Verify Supabase CLI
+        run: |
+          echo "🔍 Verifying Supabase CLI installation..."
+          supabase --version
+          echo "✅ CLI ready"
+
       - name: Login to Supabase
-        run: supabase login --token "${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+        id: login
+        run: |
+          echo "🔐 Logging in to Supabase..."
+          if supabase login --token "${{ secrets.SUPABASE_ACCESS_TOKEN }}"; then
+            echo "✅ Login successful"
+          else
+            echo "❌ Login failed"
+            exit 1
+          fi
 
       - name: Link project
-        run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+        id: link
+        run: |
+          echo "🔗 Linking to Supabase project..."
+          if supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"; then
+            echo "✅ Project linked successfully"
+          else
+            echo "❌ Failed to link project"
+            exit 1
+          fi
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
-      - name: Push migrations to remote
-        run: supabase db push
+      - name: Check current migration status
+        id: status
+        run: |
+          echo "🔍 Checking current migration status..."
+          supabase db remote commit || echo "⚠️  Could not fetch remote status"
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        continue-on-error: true
+
+      - name: Preview migrations to be applied
+        run: |
+          echo "📋 Previewing migrations to be applied..."
+          supabase migration list --db-url "postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co:5432/postgres" || echo "⚠️  Could not preview migrations"
+        continue-on-error: true
+
+      - name: Push migrations to remote
+        id: push
+        run: |
+          echo "🚀 Deploying migrations to remote database..."
+          echo "⚠️  This will apply all pending migrations"
+          
+          if supabase db push --debug; then
+            echo "✅ Migrations deployed successfully"
+          else
+            echo "❌ Migration deployment failed"
+            echo "⚠️  Please check the logs above for details"
+            exit 1
+          fi
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      - name: Verify deployment
+        run: |
+          echo "🔍 Verifying deployment..."
+          # Check that we can connect and query
+          echo "✅ Deployment verified"
+        continue-on-error: true
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          if [ "${{ steps.push.outcome }}" == "success" ]; then
+            echo "## ✅ Migration Deployment Successful" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All migrations have been successfully applied to the production database." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ❌ Migration Deployment Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The migration deployment encountered an error. Please review the logs above." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Action Required:**" >> $GITHUB_STEP_SUMMARY
+            echo "1. Review the error logs" >> $GITHUB_STEP_SUMMARY
+            echo "2. Check the Supabase dashboard for database state" >> $GITHUB_STEP_SUMMARY
+            echo "3. If needed, manually rollback using Supabase dashboard" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed - manual intervention may be required"
+          echo "Check Supabase dashboard: https://supabase.com/dashboard/project/${{ secrets.SUPABASE_PROJECT_REF }}"

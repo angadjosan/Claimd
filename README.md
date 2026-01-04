@@ -439,6 +439,124 @@ See `/database/README.md` for complete schema documentation.
 
 ---
 
+## Database Migrations
+
+We use Supabase migrations to manage database schema changes. All migrations are stored in `supabase/migrations/` and are automatically validated and deployed via CI/CD.
+
+### Creating New Migrations
+
+#### 1. Create a migration
+
+```bash
+supabase migration new add_xyz
+```
+
+This creates a new migration file:
+```
+supabase/migrations/<timestamp>_add_xyz.sql
+```
+
+#### 2. Write your SQL
+
+Edit the migration file with your SQL changes. Examples include:
+
+- **Creating tables**: `CREATE TABLE ...`
+- **Altering tables**: `ALTER TABLE ... ADD COLUMN ...`
+- **Creating indexes**: `CREATE INDEX ...`
+- **Setting up RLS policies**: `CREATE POLICY ...`
+- **Creating functions**: `CREATE OR REPLACE FUNCTION ...`
+- **Creating triggers**: `CREATE TRIGGER ...`
+- **Data migrations**: `INSERT`, `UPDATE`, `DELETE` statements
+
+Example migration:
+```sql
+-- Migration: add_xyz
+-- Description: Add new column to applications table
+
+ALTER TABLE applications 
+ADD COLUMN new_field TEXT;
+
+CREATE INDEX idx_applications_new_field 
+ON applications(new_field);
+
+-- Add RLS policy
+CREATE POLICY "Users can view their own applications"
+ON applications FOR SELECT
+USING (auth.uid() = user_id);
+```
+
+#### 3. Validate locally (recommended)
+
+Before committing, always test your migration locally:
+
+```bash
+# Start local Supabase instance
+supabase start
+
+# Reset database and apply all migrations
+supabase db reset
+
+# Verify the migration was applied correctly
+supabase db diff
+```
+
+#### 4. Commit and push
+
+Once validated locally:
+
+```bash
+git add supabase/migrations/<timestamp>_add_xyz.sql
+git commit -m "Add migration: add_xyz"
+git push
+```
+
+### CI/CD Pipeline
+
+Our CI/CD pipeline automatically:
+
+1. **On Pull Requests**: 
+   - Validates migration file syntax
+   - Tests migrations in a clean local Supabase instance
+   - Verifies all migrations can be applied in order
+   - Checks for duplicate migration names
+
+2. **On Merge to Main**:
+   - Pre-deployment validation
+   - Applies migrations to production database
+   - Verifies deployment success
+   - Provides deployment summary
+
+### Migration Best Practices
+
+- ✅ **Always test locally** before pushing
+- ✅ **Use descriptive names** for migrations (e.g., `add_user_email_index`, not `migration_1`)
+- ✅ **Keep migrations small and focused** - one logical change per migration
+- ✅ **Never modify existing migrations** - create a new migration to fix issues
+- ✅ **Include comments** explaining the purpose of the migration
+- ✅ **Test rollback scenarios** if your migration is complex
+- ✅ **Check for breaking changes** that might affect running applications
+- ⚠️ **Never drop columns/tables** without a deprecation period
+- ⚠️ **Be careful with data migrations** - test with production-like data
+
+### Troubleshooting
+
+**Migration fails in CI/CD:**
+- Check the GitHub Actions logs for specific SQL errors
+- Verify your migration works locally with `supabase db reset`
+- Ensure all required dependencies exist before your migration runs
+
+**Migration conflicts:**
+- Ensure migration timestamps are sequential
+- Never force-push changes to main branch
+- Coordinate with team members on migration order
+
+**Rollback needed:**
+- Use Supabase dashboard to manually revert if needed
+- Create a new migration to undo changes (preferred)
+- Contact team lead for production rollback assistance
+
+---
+
 ## Impact
 
 ### For Applicants
