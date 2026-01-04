@@ -300,10 +300,93 @@ def update_db_with_ai_output(output, application_id, application_data):
         logger.error(f"Failed to update database: {e}")
         raise
 
+def assign_case_to_caseworker(application_id):
+    """
+    Assign a case to an available caseworker, distributing evenly.
+    Returns the assigned caseworker_id or None if no caseworkers available.
+    """
+    logger.info(f"Assigning application {application_id} to a caseworker")
+    
+    # Get all active and available caseworkers
+    caseworkers_response = supabase.table('users').select('id').eq('role', 'caseworker').eq('is_active', True).eq('caseworker_available', True).execute()
+    
+    if not caseworkers_response.data or len(caseworkers_response.data) == 0:
+        logger.warning("No available caseworkers found")
+        return None
+    
+    caseworker_ids = [cw['id'] for cw in caseworkers_response.data]
+    
+    # Get current assignment counts for each caseworker
+    # Count unopened and in_progress assignments (not completed)
+    assignment_counts = {}
+    for cw_id in caseworker_ids:
+        # Count active assignments (unopened or in_progress)
+        # Get all assignments and count them
+        assignments_response = supabase.table('assigned_applications').select('id').eq('reviewer_id', cw_id).in_('review_status', ['unopened', 'in_progress']).execute()
+        assignment_counts[cw_id] = len(assignments_response.data) if assignments_response.data else 0
+    
+    # Find caseworker with fewest assignments
+    min_count = min(assignment_counts.values())
+    caseworkers_with_min = [cw_id for cw_id, count in assignment_counts.items() if count == min_count]
+    
+    # If multiple caseworkers have the same count, pick the first one
+    # (Could be randomized, but deterministic is fine for now)
+    selected_caseworker_id = caseworkers_with_min[0]
+    
+    logger.info(f"Selected caseworker {selected_caseworker_id} with {min_count} current assignments")
+    
+    # Assign the application using the assign_reviewer function
+    # p_assigned_by is optional (defaults to NULL for system assignments)
+    try:
+        assignment_response = supabase.rpc('assign_reviewer', {
+            'p_application_id': application_id,
+            'p_reviewer_id': selected_caseworker_id,
+            'p_priority': 0
+        }).execute()
+        
+        if assignment_response.data:
+            logger.info(f"Successfully assigned application {application_id} to caseworker {selected_caseworker_id}")
+            return selected_caseworker_id
+        else:
+            logger.error(f"Failed to assign application {application_id}")
+            return None
+    except Exception as e:
+        logger.error(f"Error assigning application {application_id} to caseworker {selected_caseworker_id}: {e}")
+        return None
+
+def orchestrate_assignment(application_id):
+    """
+    Orchestrate case assignment to caseworkers.
+    """
+    logger.info(f"Orchestrating assignment for application {application_id}")
+    
+    # Verify application exists and is in submitted status
+    app_response = supabase.table('applications').select('id, status').eq('id', application_id).execute()
+    if not app_response.data:
+        raise Exception(f"Application {application_id} not found")
+    
+    app_status = app_response.data[0]['status']
+    if app_status != 'submitted':
+        logger.warning(f"Application {application_id} is in status {app_status}, not submitted. Skipping assignment.")
+        return {"result": "skipped", "reason": f"Application status is {app_status}"}
+    
+    # Check if already assigned
+    existing_assignment = supabase.table('assigned_applications').select('id').eq('application_id', application_id).execute()
+    if existing_assignment.data:
+        logger.info(f"Application {application_id} is already assigned")
+        return {"result": "already_assigned"}
+    
+    # Assign to caseworker
+    assigned_caseworker_id = assign_case_to_caseworker(application_id)
+    
+    if assigned_caseworker_id:
+        return {"result": "assigned", "caseworker_id": str(assigned_caseworker_id)}
+    else:
+        return {"result": "no_caseworkers_available"}
+
 def process_task(task):
     """
-    Process the individual task.
-    This is where your AI/Processing logic goes.
+    Process the individual task based on task type.
     """
     task_id = task['id']
     task_type = task['task_type']
@@ -311,32 +394,36 @@ def process_task(task):
     
     logger.info(f"Processing task {task_id} of type {task_type}")
     
-    # Simulate processing time
-    time.sleep(2)
-    
     application_id = payload.get('application_id')
-    if application_id:
+    
+    if task_type == 'ai':
+        # AI processing task
+        if not application_id:
+            raise Exception(f"No application_id provided in AI task {task_id}")
+        
         # Load application data to pass to update function
         application_data, _ = load_from_supabase(application_id)
         out = ai(application_id)
         update_db_with_ai_output(out, application_id, application_data)
-    else:
-        logger.warning(f"No application_id provided in task {task_id}")
-
-    # TODO: later
-    ## https://platform.claude.com/docs/en/build-with-claude/batch-processing
-    ## https://platform.claude.com/docs/en/build-with-claude/citations. For PDFs: citations will include the page number range (1-indexed).
-    ## black-out algorithm (PDF parsing), verification that no SSNs passed in. 
-    ## orchestration - assigns, etc
-    ## https://platform.claude.com/docs/en/build-with-claude/effort
-    ## https://platform.claude.com/docs/en/build-with-claude/extended-thinking
-    
-    
-    if task_type == 'fail_test':
+        
+        logger.info(f"AI task {task_id} completed successfully")
+        return {"result": "success", "next_task": "orchestration"}
+        
+    elif task_type == 'orchestration':
+        # Orchestration task - assign to caseworkers
+        if not application_id:
+            raise Exception(f"No application_id provided in orchestration task {task_id}")
+        
+        result = orchestrate_assignment(application_id)
+        logger.info(f"Orchestration task {task_id} completed: {result}")
+        return result
+        
+    elif task_type == 'fail_test':
         raise Exception("Simulated failure")
         
-    logger.info(f"Task {task_id} completed successfully")
-    return {"result": "success"}
+    else:
+        logger.warning(f"Unknown task type: {task_type}")
+        return {"result": "unknown_task_type"}
 
 def worker_loop():
     """Main worker loop."""
@@ -372,6 +459,23 @@ def worker_loop():
                     'updated_at': 'now()',
                     'payload': current_payload
                 }).eq('id', task_id).execute()
+                
+                # 4. If AI task completed successfully, create orchestration task
+                if task['task_type'] == 'ai' and result.get('result') == 'success':
+                    application_id = task['payload'].get('application_id')
+                    if application_id:
+                        logger.info(f"Creating orchestration task for application {application_id}")
+                        try:
+                            supabase.table('processing_queue').insert({
+                                'application_id': application_id,
+                                'task_type': 'orchestration',
+                                'payload': {'application_id': application_id},
+                                'status': 'pending'
+                            }).execute()
+                            logger.info(f"Orchestration task created for application {application_id}")
+                        except Exception as e:
+                            logger.error(f"Failed to create orchestration task for application {application_id}: {e}")
+                            # Don't fail the AI task if orchestration task creation fails
                 
             except Exception as e:
                 logger.error(f"Error processing task {task_id}: {e}")
