@@ -1,6 +1,11 @@
 # Claimd
 
-**Accelerating Social Security Disability Insurance (SSDI) claim processing with AI-powered document analysis**
+**Accelerating Social Security Disability Insurance (SSDI) claim processing from 7 months to 1-2 days with AI-powered document analysis**
+
+[![Built with Claude](https://img.shields.io/badge/Built%20with-Claude%20Haiku%204.5-blue)](https://www.anthropic.com)
+[![React](https://img.shields.io/badge/React-19.1.1-61dafb)](https://react.dev)
+[![Node.js](https://img.shields.io/badge/Node.js-Express-green)](https://expressjs.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-336791)](https://supabase.com)
 
 ---
 
@@ -9,36 +14,26 @@
 - [Overview](#overview)
   - [The Problem](#the-problem)
   - [Our Solution](#our-solution)
-- [Features](#features)
-  - [User Portal](#user-portal)
-  - [Admin Dashboard](#admin-dashboard)
-  - [AI Processing Engine](#ai-processing-engine)
+- [Key Features](#key-features)
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
-  - [Environment Configuration](#environment-configuration)
   - [Running the Application](#running-the-application)
-  - [Access Points](#access-points)
-  - [Stopping the Servers](#stopping-the-servers)
-- [Admin Access](#admin-access)
-- [Project Structure](#project-structure)
-- [Roadmap](#roadmap)
-  - [Current (MVP)](#current-mvp)
-  - [Future Enhancements](#future-enhancements)
+- [AI Processing Pipeline](#ai-processing-pipeline)
+- [Database Schema](#database-schema)
 - [Impact](#impact)
-- [Demo & Pitch](#demo--pitch)
-- [Important Notes](#important-notes)
+- [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [License](#license)
-- [Acknowledgments](#acknowledgments)
 
 ---
 
 ## Overview
 
-Claimd is an AI-powered platform that dramatically reduces SSDI application processing time from **7 months to 1-2 days**. By automating document review and validation, we help 940,000 Americans waiting for disability benefits get faster decisions while giving SSA officers powerful AI assistance to review claims **20x faster**.
+Claimd is an AI-powered platform that dramatically reduces SSDI application processing time from **7 months to 1-2 days**. By automating document review and validation using Claude Haiku 4.5, we help 940,000 Americans waiting for disability benefits get faster decisions while giving SSA officers powerful AI assistance to review claims **20x faster**.
 
 ### The Problem
 
@@ -49,46 +44,198 @@ Claimd is an AI-powered platform that dramatically reduces SSDI application proc
 
 ### Our Solution
 
-Instead of humans reading through dozens of documents and fields, Claimd provides:
-- **AI-powered document extraction & validation** from medical records, financial documents, and personal information
-- **Intelligent decision recommendations** (approve, reject, or further review) with confidence levels
-- **30-second AI summaries** replacing 10-minute manual reviews
-- **Human-in-the-loop verification** ensuring accuracy and accountability
+Claimd provides an end-to-end platform with three main components:
+- **Applicant Portal**: Streamlined 13-step application form mirroring SSA's official process
+- **Caseworker Portal**: Administrative dashboard with AI-powered decision recommendations
+- **AI Processing Service**: Background worker that extracts data from documents and evaluates applications using SSA's official 5-Step Sequential Evaluation Process
 
 ---
 
-## Features
+## Key Features
 
-### User Portal
-- **Streamlined application flow** mirroring SSA's official process
-- **Document upload system** for medical records, financial proof, and personal information
-- **Application status tracking** with real-time updates
-- **Clear next steps** for approved or rejected claims, including SSDI payment calculations
+### Applicant Portal
+- **13-step guided application form** with validation at each step
+- **Document upload system** for medical records, W-2s, birth certificates, and financial proof
+- **Real-time status tracking** with progress indicators
+- **Personal dashboard** showing application progress and next steps
+- **SSDI payment calculator** based on earnings history
 
-### Admin Dashboard
+### Caseworker Portal
 - **Application queue** with AI recommendation tags (approve/reject/further review)
-- **Detailed AI analysis** for each claim including:
-  - Decision recommendation with confidence level (color-coded: green/yellow/red)
-  - AI-generated summary explaining the decision
-  - SSDI payment calculation with adjustable amounts
-  - Supporting document excerpts and validation
-- **One-click approval/rejection** with automatic database updates
+- **Detailed AI analysis** including:
+  - 5-phase evaluation breakdown following SSA rules
+  - Color-coded confidence scoring (green/yellow/red)
+  - Legal citations (42 U.S.C. § 423, 20 CFR § 404.x)
+  - Source document references
+  - SSDI payment calculations
+- **One-click approval/rejection** workflow
+- **Document viewer** with AI-extracted insights
+- **Assignment system** for distributing workload among caseworkers
 
 ### AI Processing Engine
-- **Structured output validation** with fact-checking against source documents
-- **Multi-document analysis** extracting and cross-referencing information
+- **Dual-agent system**:
+  - **Extractor Agent**: Parses PDFs using Claude's document understanding
+  - **Reasoning Agent**: Evaluates applications against SSA's 5-Step Sequential Evaluation Process
+- **Structured output validation** with JSON schemas
+- **Multi-document analysis** cross-referencing medical records, financial documents, and personal information
 - **Confidence scoring** (0-1 probability scale) for decision transparency
-- **RAG-powered context** using ChromaDB for intelligent document retrieval
+- **ChromaDB vector store** for RAG-powered document retrieval
+- **Processing queue** with retry logic and error handling
+
+---
+
+## Architecture
+
+### Multi-Tier Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    FRONTEND LAYER                        │
+├──────────────────┬──────────────────┬───────────────────┤
+│  Applicant UI    │  Caseworker UI   │   Landing Page    │
+│  (Port 5173)     │  (Port 5191)     │   (Port 5173)     │
+│  React/TypeScript│  React/TypeScript│   React/Three.js  │
+└────────┬─────────┴────────┬─────────┴───────────────────┘
+         │                  │
+         ▼                  ▼
+┌─────────────────────────────────────────────────────────┐
+│                    BACKEND LAYER                         │
+├──────────────────┬──────────────────────────────────────┤
+│  Applicant API   │         Caseworker API               │
+│  (Port 3001)     │         (Port 3002)                  │
+│  Node.js/Express │         Node.js/Express              │
+└────────┬─────────┴────────┬───────────────────────────┬─┘
+         │                  │                           │
+         └──────────────────┼───────────────────────────┘
+                            ▼
+         ┌─────────────────────────────────────┐
+         │    Supabase (PostgreSQL + Auth)     │
+         │  - Applications DB                  │
+         │  - Users & Roles (RLS)              │
+         │  - File Storage (S3)                │
+         │  - Processing Queue                 │
+         └─────────────┬───────────────────────┘
+                       │
+                       ▼
+         ┌─────────────────────────────────────┐
+         │   AI Processing Service (Python)    │
+         │  - Worker Loop (Background)         │
+         │  - Document Extractor (Claude API)  │
+         │  - Reasoning Engine (Claude API)    │
+         │  - ChromaDB (Vector Store)          │
+         └─────────────────────────────────────┘
+```
+
+### Data Flow
+
+1. **Application Submission**:
+   - Applicant fills 13-step form → Frontend validates with Zod
+   - Uploads PDFs (medical records, W-2s) → Stored in Supabase Storage
+   - Submits application → Stored in `applications` table
+   - Triggers task in `processing_queue`
+
+2. **AI Processing** (Async):
+   - Worker polls queue → Fetches application + PDFs
+   - **Extractor Call**: Claude extracts structured data from PDFs
+   - **Reasoning Call**: Claude evaluates against SSA 5-Step Process
+   - Updates `applications` table with AI recommendations
+
+3. **Caseworker Review**:
+   - Dashboard shows applications with AI recommendations
+   - Clicks application → Views AI analysis (phases, evidence, confidence)
+   - Reviews extracted data and supporting documents
+   - Makes final decision → Updates status → Applicant notified
 
 ---
 
 ## Tech Stack
 
-**Frontend:** React, Vite  
-**Backend:** FastAPI, Python 3.x  
-**AI/ML:** Claude API, ChromaDB (vector embeddings)  
-**Storage:** S3 buckets, PostgreSQL/SQLite  
-**Document Processing:** PDF extraction, structured data validation
+### Frontend
+- **Framework**: React 19.1.1
+- **Build Tool**: Vite 7.x
+- **Language**: TypeScript
+- **UI/Styling**: Tailwind CSS 4.x, Lucide React (icons)
+- **3D Graphics**: Three.js with React Three Fiber (landing page)
+- **Routing**: React Router DOM v7
+- **Validation**: Zod schemas
+- **Authentication**: Supabase Auth
+
+### Backend
+- **APIs**: Node.js with Express 5.x
+- **Security**: Helmet.js, CORS, Express Rate Limiting
+- **File Upload**: Multer
+- **Environment**: dotenv
+
+### AI Processing Service
+- **Runtime**: Python 3.x
+- **LLM**: Anthropic Claude Haiku 4.5 (`claude-haiku-4-5-20251001`)
+- **Document Processing**: PDF extraction with base64 encoding
+- **Vector DB**: ChromaDB for RAG-powered document retrieval
+- **Structured Output**: JSON schemas with validation
+
+### Database & Storage
+- **Database**: PostgreSQL via Supabase
+- **File Storage**: Supabase Storage (S3-compatible buckets)
+- **Authentication**: Supabase Auth with JWT tokens
+- **Authorization**: Row-Level Security (RLS) policies
+
+### Security Features
+- **SSN Protection**: SHA-256 hashing with pepper (never stored in plain text)
+- **Role-Based Access**: Applicants, caseworkers, administrators with RLS policies
+- **Rate Limiting**: API throttling on all endpoints
+- **HTTP Security**: Helmet.js, CORS protection
+- **Authentication**: JWT tokens with Supabase Auth
+
+---
+
+## Project Structure
+
+```
+calhacksy1/
+├── applicant/
+│   ├── frontend/          # React UI for SSDI applicants
+│   │   ├── src/
+│   │   │   ├── pages/UserFormPage/    # 13-step application form
+│   │   │   ├── components/            # Reusable form components
+│   │   │   └── services/auth.ts       # Supabase auth integration
+│   │   └── package.json
+│   └── backend/           # Node.js/Express API
+│       ├── routes/private/applications.js  # Application CRUD
+│       └── server.js
+│
+├── caseworker/
+│   ├── frontend/          # React UI for SSA caseworkers
+│   │   ├── src/
+│   │   │   ├── pages/Dashboard/       # Admin dashboard
+│   │   │   └── services/auth.ts       # Supabase auth integration
+│   │   └── package.json
+│   └── backend/           # Node.js/Express API
+│       ├── routes/private/dashboard.js    # Dashboard API
+│       └── server.js
+│
+├── ai-app-processing-service/    # Python AI worker
+│   ├── worker.py          # Main processing loop (391 lines)
+│   ├── prompts/
+│   │   ├── extractor_prompt.md      # Document extraction instructions
+│   │   ├── reasoning_prompt.md      # SSDI evaluation instructions
+│   │   └── rules.md                 # Legal standards and SSA rules
+│   ├── schemas/
+│   │   ├── extractor_output_schema.json
+│   │   └── reasoning_output_schema.json
+│   └── requirements.txt
+│
+├── database/
+│   ├── migrations/        # PostgreSQL schema migrations
+│   │   ├── create_applications.sql
+│   │   ├── queue_schema.sql
+│   │   └── ...
+│   └── README.md          # Complete schema documentation
+│
+└── landing-page/          # Public-facing marketing site
+    ├── src/
+    │   └── components/Globe3D.tsx    # Three.js 3D globe
+    └── package.json
+```
 
 ---
 
@@ -96,15 +243,14 @@ Instead of humans reading through dozens of documents and fields, Claimd provide
 
 ### Prerequisites
 
-Before you begin, ensure you have the following installed:
-- Python 3.x
-- Node.js & npm
-- pip (Python package manager)
-- Claude API key (sign up at [Anthropic](https://console.anthropic.com/))
+- **Node.js** (v18+ recommended)
+- **npm** or **yarn**
+- **Python 3.x**
+- **pip** (Python package manager)
+- **PostgreSQL** (or Supabase account)
+- **Anthropic API key** (sign up at [Anthropic Console](https://console.anthropic.com/))
 
 ### Installation
-
-Follow these steps to set up and run the application:
 
 #### 1. Clone the Repository
 
@@ -113,91 +259,184 @@ git clone <repository-url>
 cd calhacksy1
 ```
 
-#### 2. Backend Setup
-
-Navigate to the backend directory and set up the Python environment:
+#### 2. Applicant Portal Setup
 
 ```bash
-cd backend
+# Frontend
+cd applicant/frontend
+npm install
+
+# Backend
+cd ../backend
+npm install
+```
+
+Create `applicant/backend/.env`:
+```env
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_anon_key
+PORT=3001
+```
+
+Create `applicant/frontend/.env`:
+```env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+#### 3. Caseworker Portal Setup
+
+```bash
+# Frontend
+cd caseworker/frontend
+npm install
+
+# Backend
+cd ../backend
+npm install
+```
+
+Create `caseworker/backend/.env`:
+```env
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_anon_key
+PORT=3002
+```
+
+Create `caseworker/frontend/.env`:
+```env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+#### 4. AI Processing Service Setup
+
+```bash
+cd ai-app-processing-service
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-#### 3. Frontend Setup
-
-Navigate to the frontend directory and install dependencies:
-
-```bash
-cd ../frontend
-npm install
+Create `ai-app-processing-service/.env`:
+```env
+ANTHROPIC_API_KEY=your_anthropic_api_key
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_service_role_key
 ```
 
-### Environment Configuration
+#### 5. Database Setup
 
-#### Backend Environment Variables
-
-Create a `.env` file in the `backend` directory:
-
-```bash
-cd backend
-echo "CLAUDE_API_KEY=your_claude_api_key_here" > .env
-```
-
-Or manually create `backend/.env` with:
-```
-CLAUDE_API_KEY=your_claude_api_key_here
-```
-
-#### Frontend Environment Variables
-
-No environment variables are required for the frontend in development mode. The frontend will automatically connect to the backend API running on `http://localhost:8000`.
+1. Create a Supabase project at [supabase.com](https://supabase.com)
+2. Run migrations in order from `/database/migrations/` using the Supabase SQL editor
+3. Configure Row-Level Security (RLS) policies as documented in `/database/README.md`
+4. Create storage buckets:
+   - `application-files` (for uploaded PDFs)
+   - Configure bucket policies to allow authenticated uploads
 
 ### Running the Application
 
-You need **TWO terminals** to run both backend and frontend simultaneously.
+You'll need **5 terminals** to run all services:
 
-#### Terminal 1 - Backend Server
-
+#### Terminal 1 - Applicant Backend
 ```bash
-cd backend
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-python main.py
+cd applicant/backend
+npm start
+# Runs on http://localhost:3001
 ```
 
-The backend will be available at: **`http://127.0.0.1:8000`**
-
-#### Terminal 2 - Frontend Server
-
+#### Terminal 2 - Applicant Frontend
 ```bash
-cd frontend
+cd applicant/frontend
 npm run dev
+# Runs on http://localhost:5173
 ```
 
-The frontend will be available at: **`http://localhost:5173`**
+#### Terminal 3 - Caseworker Backend
+```bash
+cd caseworker/backend
+npm start
+# Runs on http://localhost:3002
+```
+
+#### Terminal 4 - Caseworker Frontend
+```bash
+cd caseworker/frontend
+npm run dev
+# Runs on http://localhost:5191
+```
+
+#### Terminal 5 - AI Processing Service
+```bash
+cd ai-app-processing-service
+source venv/bin/activate
+python worker.py
+# Polls processing queue in background
+```
 
 ### Access Points
 
-Once both servers are running, you can access:
-
-- **User Portal:** `http://localhost:5173/user`
-- **Admin Dashboard:** `http://localhost:5173/admin`
-- **API Documentation:** `http://127.0.0.1:8000/docs` (interactive Swagger UI)
-- **Alternative API Docs:** `http://127.0.0.1:8000/redoc`
-
-### Stopping the Servers
-
-- Press `Ctrl+C` in each terminal to stop the respective servers
-- Make sure to stop both backend and frontend servers when done
-- Deactivate the Python virtual environment: `deactivate`
+- **Applicant Portal**: `http://localhost:5173`
+- **Caseworker Portal**: `http://localhost:5191`
+- **Landing Page**: `http://localhost:5173` (landing-page build)
 
 ---
 
-**Important Notes:**
-- File location: `.env.local` goes in the `frontend/` directory
-- Variable name: Must start with `VITE_` to be accessible in the browser
-- Restart required: Restart your dev server after creating the file
-- Git ignore: `.env.local` should be in `.gitignore` (don't commit secrets)
+## AI Processing Pipeline
+
+### SSA 5-Step Sequential Evaluation Process
+
+The AI Reasoning Agent evaluates applications using the official SSA disability determination process:
+
+#### Phase 0: Basic Eligibility & Insured Status
+- Validates quarters of coverage (20/40 rule)
+- Checks age requirements (18-65)
+- **Legal basis**: 42 U.S.C. § 423(a)(1)(D)
+
+#### Phase 1: Substantial Gainful Activity (SGA)
+- Checks if earnings exceed $1,550/month threshold
+- **Legal basis**: 20 CFR § 404.1571-1576
+
+#### Phase 2: Severe Impairment
+- Validates medical conditions significantly limit work
+- **Legal basis**: 20 CFR § 404.1520(c)
+
+#### Phase 3: Listed Impairments (Blue Book)
+- Checks against official SSA medical listings
+- **Legal basis**: 20 CFR § 404.1520(d), Appendix 1 to Subpart P
+
+#### Phase 4: Residual Functional Capacity (RFC) & Past Relevant Work
+- Evaluates ability to perform previous work
+- **Legal basis**: 20 CFR § 404.1520(e)-(f)
+
+#### Phase 5: Adjustment to Other Work (Grid Rules)
+- Applies Medical-Vocational Guidelines
+- **Legal basis**: 20 CFR § 404.1520(g), Appendix 2 to Subpart P
+
+### AI Output Format
+
+Each phase produces:
+- **Status**: PASS / FAIL / WARN
+- **Reasoning**: Detailed explanation
+- **Legal Citations**: Relevant statutes and regulations
+- **Evidence**: Document references supporting the decision
+- **Confidence Score**: 0-1 probability scale
+
+---
+
+## Database Schema
+
+Key tables:
+
+- **users**: Applicants, caseworkers, and administrators
+- **applications**: SSDI applications with JSONB fields for complex nested data
+- **application_files**: Uploaded PDFs (medical records, W-2s, etc.)
+- **application_status_history**: Audit trail of status changes
+- **processing_queue**: Async AI task queue
+- **assigned_applications**: Caseworker workload distribution
+
+See `/database/README.md` for complete schema documentation.
+
 ---
 
 ## Impact
@@ -216,8 +455,62 @@ Once both servers are running, you can access:
 
 ### At Scale
 - Help process backlog of **940,000 pending claims**
-- Reduce burden on understaffed SSA offices
+- Reduce burden on understaffed SSA offices (25-year staffing low)
 - Improve outcomes for disabled Americans in need
 - Save taxpayer dollars through increased efficiency
 
 ---
+
+## Roadmap
+
+### Current (MVP)
+- ✅ 13-step application form with validation
+- ✅ PDF upload and storage
+- ✅ AI document extraction (Claude Haiku 4.5)
+- ✅ AI reasoning engine (SSA 5-Step Process)
+- ✅ Caseworker dashboard with recommendations
+- ✅ Role-based authentication (applicants, caseworkers, admins)
+- ✅ Processing queue with retry logic
+
+### Future Enhancements
+- 🔄 Real-time WebSocket notifications for applicants
+- 🔄 Email notifications for status updates
+- 🔄 Appeals workflow for rejected applications
+- 🔄 Advanced analytics dashboard for SSA administrators
+- 🔄 Integration with SSA's existing systems (EDIB, SSA-831)
+- 🔄 Mobile application for applicants
+- 🔄 Multi-language support
+- 🔄 Audit logging and compliance reporting
+- 🔄 A/B testing for AI prompt optimization
+- 🔄 Model fine-tuning with historical SSA decisions
+
+---
+
+## Contributing
+
+This project was built for the CalHacks hackathon. Contributions are welcome!
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## License
+
+[Add your license here]
+
+---
+
+## Acknowledgments
+
+- **Anthropic** for Claude Haiku 4.5 API
+- **Supabase** for database and authentication
+- **CalHacks** for the opportunity to build impactful technology
+- **Social Security Administration** for public documentation of disability determination process
+
+---
+
+Built with ❤️ to help Americans get faster access to disability benefits
