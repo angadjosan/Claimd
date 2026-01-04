@@ -1,7 +1,7 @@
-import { Link } from 'react-router-dom';
 import './MinimalNavbar.css';
 
 const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:5190';
+const APPLICANT_URL = import.meta.env.VITE_APPLICANT_URL || 'http://localhost:5173';
 
 export default function MinimalNavbar() {
   return (
@@ -21,12 +21,12 @@ export default function MinimalNavbar() {
             >
               Home
             </a>
-            <Link 
-              to="/dashboard" 
+            <a 
+              href={`${APPLICANT_URL}/dashboard`}
               className="text-sm text-gray-900 border border-gray-900 px-4 py-2 rounded-full hover:bg-gray-900 hover:text-white transition-all duration-200"
             >
               Dashboard
-            </Link>
+            </a>
           </div>
         </div>
       </div>

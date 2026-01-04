@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -6,7 +6,6 @@ import { ToastProvider } from './components/Toast';
 import { FormProvider } from './context/FormContext';
 
 // Lazy load all pages for better performance
-const Landing = lazy(() => import('./pages/Landing/Landing'));
 const AuthPage = lazy(() => import('./pages/Auth/Auth'));
 const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
 const UserFormPage = lazy(() => import('./pages/UserFormPage/UserFormPage'));
@@ -27,7 +26,7 @@ function App() {
             </div>
           }>
             <Routes>
-              <Route path="/" element={<Landing />} />
+              <Route path="/" element={<Navigate to="/auth" replace />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/dashboard" element={
                 <ProtectedRoute>
