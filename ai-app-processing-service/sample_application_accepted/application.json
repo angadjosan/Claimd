@@ -1,0 +1,260 @@
+{
+  "your-info": {
+    "birthdate": "1985-03-15",
+    "birthplace": "Oakland, California",
+    "permanent_resident_card": null,
+    "ssn": "123-45-6789",
+    "spouses": [
+      {
+        "spouse_name": "James Robert Johnson",
+        "spouse_ssn": "987-65-4321",
+        "spouse_birthdate": "1983-07-22",
+        "marriage_start_date": "2010-06-15",
+        "marriage_end_date": null,
+        "marriage_place_city": "Oakland",
+        "marriage_place_state_or_country": "California"
+      }
+    ],
+    "children": [
+      {
+        "child_name": "Emily Marie Johnson",
+        "child_date_of_birth": "2012-09-05",
+        "child_status": {
+          "disabled_before_22": false,
+          "under_18_unmarried": true,
+          "age_18_to_19_in_secondary_school_full_time": false
+        }
+      }
+    ],
+    "direct_deposit": {
+      "type": "domestic",
+      "domestic": {
+        "account_type": "checking",
+        "account_number": "1234567890",
+        "bank_routing_transit_number": "121000248"
+      }
+    },
+    "contact_who_knows_your_condition": {
+      "contact_name": "James Robert Johnson",
+      "relationship": "Spouse",
+      "address": {
+        "street": "456 Main Street",
+        "city": "Oakland",
+        "state": "California",
+        "zip": "94607",
+        "country": "United States"
+      },
+      "phone_number": "(510) 555-0198",
+      "notes": "Husband, lives with applicant"
+    }
+  },
+  "employment": {
+    "earnings_history": [
+      {
+        "year": "2010",
+        "total_earnings": 28500
+      },
+      {
+        "year": "2011",
+        "total_earnings": 31200
+      },
+      {
+        "year": "2012",
+        "total_earnings": 33800
+      },
+      {
+        "year": "2013",
+        "total_earnings": 35400
+      },
+      {
+        "year": "2014",
+        "total_earnings": 37100
+      },
+      {
+        "year": "2015",
+        "total_earnings": 38900
+      },
+      {
+        "year": "2016",
+        "total_earnings": 40200
+      },
+      {
+        "year": "2017",
+        "total_earnings": 42500
+      },
+      {
+        "year": "2018",
+        "total_earnings": 44300
+      },
+      {
+        "year": "2019",
+        "total_earnings": 45800
+      },
+      {
+        "year": "2020",
+        "total_earnings": 47200
+      },
+      {
+        "year": "2021",
+        "total_earnings": 48600
+      },
+      {
+        "year": "2022",
+        "total_earnings": 12400
+      },
+      {
+        "year": "2023",
+        "total_earnings": 0
+      },
+      {
+        "year": "2024",
+        "total_earnings": 0
+      }
+    ],
+    "date_condition_began_affecting_work_ability": "2023-01-10",
+    "military_service": {
+      "served_in_us_military": false,
+      "service_records": []
+    },
+    "employment_history": {
+      "non_self_employment": [
+        {
+          "job_title": "Warehouse Worker",
+          "employer_name": "ABC Manufacturing Inc.",
+          "employment_start_date": "2010-03-01",
+          "employment_end_date": "2023-01-15",
+          "total_earnings": "48600",
+          "job_duties_summary": "Lifted and moved boxes weighing 50-100 pounds, operated forklift, loaded and unloaded trucks, maintained inventory. Required standing and walking 8 hours per day, frequent bending and stooping.",
+          "employer_address": "123 Industrial Blvd, Oakland, CA 94601"
+        }
+      ],
+      "self_employment": []
+    },
+    "education": [
+      {
+        "level": "High School Diploma",
+        "date_completed": "2003-06-15"
+      }
+    ],
+    "special_education": [],
+    "job_training": [],
+    "disability_benefits_filed_or_received": []
+  },
+  "medical": {
+    "conditions": [
+      {
+        "condition_name": "Lumbar Disc Herniation with Radiculopathy",
+        "date_began": "2023-01-10",
+        "how_it_limits_activities": "Severe lower back pain and left leg pain prevents standing for more than 15 minutes, sitting for more than 30 minutes, and lifting more than 5 pounds. Pain is constant and interferes with sleep. Cannot perform household chores or care for child without assistance.",
+        "treatment_received": "Physical therapy (3 months), epidural steroid injections (2), pain medications (gabapentin, naproxen, oxycodone), orthopedic consultations. Surgery recommended but not yet performed."
+      }
+    ],
+    "functional_limitations": {
+      "walking": "Can only walk 100 feet before needing to rest due to severe pain. Cannot walk more than 2 hours total in a day.",
+      "sitting": "Can only sit for 30 minutes at a time before pain becomes unbearable. Total sitting limited to 4 hours per day.",
+      "standing": "Can only stand for 15 minutes at a time. Total standing limited to 2 hours per day.",
+      "lifting": "Cannot lift more than 5 pounds due to severe back pain.",
+      "carrying": "Cannot carry more than 5 pounds.",
+      "understanding_instructions": "No limitations",
+      "remembering_instructions": "No limitations",
+      "other": "Cannot climb, balance, stoop, kneel, crouch, or crawl. Requires frequent position changes. Pain medications cause drowsiness."
+    },
+    "healthcare_providers": [
+      {
+        "name": "Dr. Michael Chen, MD",
+        "address": "789 Medical Center Dr, Oakland, CA 94609",
+        "phone_number": "(510) 555-0123",
+        "patient_id_number": "MRN-789456123",
+        "dates_of_exams_and_treatments": "January 2023 - Present. Initial consultation January 20, 2023. Follow-up visits monthly."
+      },
+      {
+        "name": "Oakland General Hospital",
+        "address": "1411 E 31st St, Oakland, CA 94602",
+        "phone_number": "(510) 437-4800",
+        "patient_id_number": "789456123",
+        "dates_of_exams_and_treatments": "January 15, 2023 - MRI and imaging studies"
+      },
+      {
+        "name": "Dr. Jennifer Martinez, PT, DPT",
+        "address": "456 Therapy Way, Oakland, CA 94607",
+        "phone_number": "(510) 555-0145",
+        "patient_id_number": null,
+        "dates_of_exams_and_treatments": "February 2023 - April 2023. Physical therapy sessions 3x per week for 12 weeks."
+      }
+    ],
+    "tests": [
+      {
+        "test_name": "MRI Lumbar Spine",
+        "test_date": "2023-01-15",
+        "ordered_by": "Dr. Michael Chen, MD",
+        "results_summary": "Large central and left paracentral disc herniation at L4-L5 with significant compression of thecal sac and left L5 nerve root. Moderate to severe spinal canal stenosis."
+      },
+      {
+        "test_name": "Physical Therapy Evaluation",
+        "test_date": "2023-02-10",
+        "ordered_by": "Dr. Michael Chen, MD",
+        "results_summary": "Functional capacity evaluation shows significant limitations. Maximum lifting: 5 pounds. Walking tolerance: 100 feet. Unable to stand >15 min or sit >30 min."
+      }
+    ],
+    "medications": [
+      {
+        "medication_name": "Gabapentin",
+        "type": "prescription",
+        "reason": "Neuropathic pain management",
+        "prescribed_by": "Dr. Michael Chen, MD"
+      },
+      {
+        "medication_name": "Naproxen",
+        "type": "prescription",
+        "reason": "Anti-inflammatory for back pain",
+        "prescribed_by": "Dr. Michael Chen, MD"
+      },
+      {
+        "medication_name": "Oxycodone",
+        "type": "prescription",
+        "reason": "Severe pain management",
+        "prescribed_by": "Dr. Michael Chen, MD"
+      }
+    ],
+    "evidence_documents": [
+      {
+        "document_type": "medical_records",
+        "description": "Complete medical records from Oakland General Hospital including MRI results and physical therapy notes",
+        "file": null
+      },
+      {
+        "document_type": "doctors_report",
+        "description": "Medical Source Statement from Dr. Chen regarding functional capacity",
+        "file": null
+      },
+      {
+        "document_type": "test_results",
+        "description": "MRI report and functional capacity evaluation results",
+        "file": null
+      }
+    ],
+    "other_record_sources": []
+  },
+  "documents": {
+    "social_security_statement": null,
+    "birth_certificate": null,
+    "citizenship_proof": null,
+    "military_discharge_papers": null,
+    "w2_forms": [
+      {
+        "year": "2022",
+        "file": null
+      },
+      {
+        "year": "2021",
+        "file": null
+      },
+      {
+        "year": "2020",
+        "file": null
+      }
+    ],
+    "self_employment_tax_returns": [],
+    "workers_comp_proof": []
+  }
+}
