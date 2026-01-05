@@ -86,17 +86,38 @@ export default function AuthPage() {
         if (formData.password.length < 6) {
           throw new Error('Password must be at least 6 characters');
         }
-        const { error } = await supabase.auth.signUp({
+        
+        // Parse full name into first and last name
+        const nameParts = formData.fullName.trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        
+        const { data, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
+            emailRedirectTo: `${window.location.origin}/apply`,
             data: {
               full_name: formData.fullName,
+              first_name: firstName,
+              last_name: lastName,
             },
           },
         });
         if (error) throw error;
-        setSuccess('Check your email for the confirmation link!');
+        
+        // Check if user is immediately confirmed (email confirmations disabled)
+        if (data.user && data.session) {
+          // User is immediately signed in, check role and redirect
+          const role = await authService.getUserRole();
+          if (role === 'applicant') {
+            navigate(redirectTo);
+          } else {
+            setSuccess('Account created successfully! Please sign in.');
+          }
+        } else {
+          setSuccess('Check your email for the confirmation link!');
+        }
       } else if (mode === 'forgot_password') {
         const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
           redirectTo: `${window.location.origin}/apply`,
