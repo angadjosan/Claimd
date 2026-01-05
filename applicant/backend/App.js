@@ -79,6 +79,22 @@ const privateRateLimiter = rateLimit({
   }
 });
 
+// Heavy rate limiter for application submissions (DB writes)
+const applicationSubmissionRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 1, // Only 1 submission per hour
+  message: {
+    error: 'Too many application submissions. Please wait before submitting again.',
+    retryAfter: '1 hour'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Use user ID for per-user rate limiting
+    return req.user?.id || req.ip || req.headers['x-forwarded-for'] || 'unknown';
+  }
+});
+
 // Auth routes rate limiter - very restrictive to prevent brute force
 const authRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
@@ -95,6 +111,7 @@ const authRateLimiter = rateLimit({
 app.set('publicRateLimiter', publicRateLimiter);
 app.set('privateRateLimiter', privateRateLimiter);
 app.set('authRateLimiter', authRateLimiter);
+app.set('applicationSubmissionRateLimiter', applicationSubmissionRateLimiter);
 
 // ============================================
 // Routes

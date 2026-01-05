@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 import { authService } from '../../services/auth';
 import MinimalNavbar from '../../components/MinimalNavbar';
-import { FileText, Plus, Clock, CheckCircle, XCircle, AlertCircle, LogOut } from 'lucide-react';
+import { useToast } from '../../components/Toast';
+import { FileText, Plus, Clock, CheckCircle, XCircle, AlertCircle, LogOut, X } from 'lucide-react';
 
 interface ApplicationSummary {
   id?: string;
@@ -73,7 +74,9 @@ export default function Dashboard() {
   const [applications, setApplications] = useState<ApplicationSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   useEffect(() => {
     fetchApplications();
@@ -91,6 +94,31 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleCancelApplication(applicationId: string) {
+    if (!window.confirm('Are you sure you want to cancel this application? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setCancellingId(applicationId);
+      await api.cancelApplication(applicationId);
+      showToast('Application cancelled successfully', 'success');
+      // Refresh the applications list
+      await fetchApplications();
+    } catch (err) {
+      console.error('Failed to cancel application:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to cancel application';
+      showToast(errorMessage, 'error');
+    } finally {
+      setCancellingId(null);
+    }
+  }
+
+  function canCancelApplication(status: string): boolean {
+    const lowerStatus = status?.toLowerCase();
+    return ['draft', 'submitted', 'processing'].includes(lowerStatus);
   }
 
   async function handleLogout() {
@@ -201,6 +229,16 @@ export default function Dashboard() {
                       {getStatusBadge(app.final_decision || app.claude_recommendation || app.status)}
                       {app.claude_recommendation && !app.final_decision && (
                         <span className="text-xs text-gray-500">AI Review Complete</span>
+                      )}
+                      {canCancelApplication(app.status) && (
+                        <button
+                          onClick={() => handleCancelApplication(getAppId(app))}
+                          disabled={cancellingId === getAppId(app)}
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <X className="w-3 h-3" />
+                          {cancellingId === getAppId(app) ? 'Cancelling...' : 'Cancel'}
+                        </button>
                       )}
                     </div>
                   </div>

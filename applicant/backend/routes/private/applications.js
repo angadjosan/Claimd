@@ -358,7 +358,7 @@ const uploadFields = upload.fields([
  * Submit a new application with all form data and files
  * Creates the application and immediately submits it
  */
-router.post('/', uploadFields, async (req, res) => {
+const applicationSubmissionHandler = async (req, res) => {
   try {
     const supabase = req.app.get('supabase');
     const authUser = req.user;
@@ -366,6 +366,33 @@ router.post('/', uploadFields, async (req, res) => {
     // Get user record (created by database trigger on signup)
     const user = await getUser(supabase, authUser);
     const userId = user.id;
+
+    // Check if user already has a pending or submitted application
+    const { data: existingApplications, error: checkError } = await supabase
+      .from('applications')
+      .select('id, status')
+      .eq('applicant_id', userId)
+      .in('status', ['draft', 'submitted', 'processing'])
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (checkError) {
+      console.error('Error checking existing applications:', checkError);
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'Failed to check existing applications',
+      });
+    }
+
+    if (existingApplications && existingApplications.length > 0) {
+      const existingApp = existingApplications[0];
+      return res.status(409).json({
+        error: 'Application Already Exists',
+        message: `You already have an application in "${existingApp.status}" status. Please complete or cancel it before submitting a new one.`,
+        existing_application_id: existingApp.id,
+        existing_status: existingApp.status,
+      });
+    }
 
     // Generate application ID
     const applicationId = uuidv4();
@@ -469,7 +496,13 @@ router.post('/', uploadFields, async (req, res) => {
       message: error.message,
     });
   }
-});
+};
+
+// Apply rate limiting middleware to the route
+router.post('/', uploadFields, (req, res, next) => {
+  const applicationSubmissionRateLimiter = req.app.get('applicationSubmissionRateLimiter');
+  applicationSubmissionRateLimiter(req, res, next);
+}, applicationSubmissionHandler);
 
 /**
  * GET /api/private/applications
@@ -542,6 +575,111 @@ router.get('/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Fetch application error:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * DELETE /api/private/applications/:id/cancel
+ * Cancel an in-progress application (draft, submitted, or processing)
+ */
+router.delete('/:id/cancel', async (req, res) => {
+  try {
+    const supabase = req.app.get('supabase');
+    const authUser = req.user;
+    const applicationId = req.params.id;
+
+    // Get user record
+    const user = await getUser(supabase, authUser);
+    const userId = user.id;
+
+    // First, verify the application exists and belongs to the user
+    const { data: application, error: fetchError } = await supabase
+      .from('applications')
+      .select('id, status, applicant_id')
+      .eq('id', applicationId)
+      .eq('applicant_id', userId)
+      .single();
+
+    if (fetchError || !application) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Application not found or you do not have permission to cancel it',
+      });
+    }
+
+    // Only allow cancellation of draft, submitted, or processing applications
+    if (!['draft', 'submitted', 'processing'].includes(application.status)) {
+      return res.status(400).json({
+        error: 'Cannot Cancel',
+        message: `Application in "${application.status}" status cannot be cancelled`,
+      });
+    }
+
+    // Update application status to cancelled
+    const { data: updatedApplication, error: updateError } = await supabase
+      .from('applications')
+      .update({
+        status: 'cancelled',
+        status_changed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', applicationId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error cancelling application:', updateError);
+      return res.status(500).json({
+        error: 'Failed to cancel application',
+        message: updateError.message,
+      });
+    }
+
+    // Create history record for cancellation
+    const { error: historyError } = await supabase
+      .from('application_status_history')
+      .insert({
+        application_id: applicationId,
+        previous_status: application.status,
+        new_status: 'cancelled',
+        changed_by: userId,
+        notes: 'Application cancelled by user',
+      });
+
+    if (historyError) {
+      console.error('History insert error:', historyError);
+      // Non-fatal, continue
+    }
+
+    // Cancel any pending processing queue tasks
+    const { error: queueError } = await supabase
+      .from('processing_queue')
+      .update({
+        status: 'cancelled',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('application_id', applicationId)
+      .in('status', ['pending', 'processing']);
+
+    if (queueError) {
+      console.error('Error cancelling queue tasks:', queueError);
+      // Non-fatal, continue
+    }
+
+    res.json({
+      success: true,
+      data: {
+        application_id: applicationId,
+        status: 'cancelled',
+        message: 'Application cancelled successfully',
+      },
+    });
+  } catch (error) {
+    console.error('Cancel application error:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message,

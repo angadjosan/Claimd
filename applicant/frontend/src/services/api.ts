@@ -263,4 +263,25 @@ export const api = {
       return null;
     }
   },
+
+  /**
+   * Cancel an in-progress application
+   */
+  async cancelApplication(applicationId: string): Promise<void> {
+    const authHeader = await authService.getAuthHeader();
+
+    const response = await fetch(`${config.apiUrl}/api/private/applications/${applicationId}/cancel`, {
+      method: 'DELETE',
+      headers: {
+        ...authHeader,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to cancel application' }));
+      throw new Error(error.message || 'Failed to cancel application');
+    }
+
+    return response.json();
+  },
 };
