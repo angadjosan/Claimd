@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
 import RootRedirect from './components/RootRedirect';
+import InitAndRedirect from './components/InitAndRedirect';
 import { ToastProvider } from './components/Toast';
 import { FormProvider } from './context/FormContext';
 
@@ -29,16 +30,8 @@ function App() {
             <Routes>
               <Route path="/" element={<RootRedirect />} />
               <Route path="/auth" element={<AuthPage />} />
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/apply" element={
-                <ProtectedRoute>
-                  <UserFormPage />
-                </ProtectedRoute>
-              } />
+              <Route path="/dashboard" element={<InitAndRedirect />} />
+              <Route path="/apply" element={<InitAndRedirect />} />
             </Routes>
           </Suspense>
         </div>

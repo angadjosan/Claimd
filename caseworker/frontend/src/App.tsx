@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
 import RootRedirect from './components/RootRedirect';
+import InitAndRedirect from './components/InitAndRedirect';
 import { ToastProvider } from './components/Toast';
 
 // Lazy load all pages for better performance
@@ -29,11 +30,7 @@ function App() {
               <Route path="/auth" element={<AuthPage />} />
               <Route
                 path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
+                element={<InitAndRedirect />}
               />
               <Route
                 path="/dashboard/applications/:id"

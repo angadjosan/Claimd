@@ -17,38 +17,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   useEffect(() => {
     let isMounted = true;
 
-    // Check initial session and role
-    const checkAuth = async () => {
-      const currentSession = await authService.getSession();
-      if (!isMounted) return;
-
-      if (!currentSession) {
-        setSession(null);
-        setHasCorrectRole(false);
-        setIsLoading(false);
-        return;
-      }
-
-      setSession(currentSession);
-      
-      // Check role
-      const role = await authService.getUserRole();
-      if (!isMounted) return;
-
-      if (role === 'caseworker') {
-        setHasCorrectRole(true);
-      } else {
-        setHasCorrectRole(false);
-        // Sign out user with wrong role
-        await authService.logout().catch(() => {});
-      }
-      
-      setIsLoading(false);
-    };
-
-    checkAuth();
-
-    // Subscribe to auth changes
+    // Use onAuthStateChange - it fires immediately with current session
+    // This avoids calling getSession() which hangs when Supabase isn't initialized
     const { data: { subscription } } = authService.onAuthStateChange(async (_event, newSession) => {
       if (!isMounted) return;
 
@@ -61,15 +31,14 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
       setSession(newSession);
       
-      // Check role
-      const role = await authService.getUserRole();
+      // Check role using session's user (avoid calling getUser() which hangs)
+      const role = await authService.getUserRole(newSession);
       if (!isMounted) return;
 
       if (role === 'caseworker') {
         setHasCorrectRole(true);
       } else {
         setHasCorrectRole(false);
-        // Sign out user with wrong role
         await authService.logout().catch(() => {});
       }
       

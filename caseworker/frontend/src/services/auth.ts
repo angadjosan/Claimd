@@ -84,9 +84,10 @@ class AuthService {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
-  async getUserRole(): Promise<string | null> {
+  async getUserRole(session?: Session | null): Promise<string | null> {
     try {
-      const user = await this.getUser();
+      // Use user from session if provided (avoids calling getUser() which hangs)
+      const user = session?.user || await this.getUser();
       if (!user) return null;
 
       const { data, error } = await supabase
