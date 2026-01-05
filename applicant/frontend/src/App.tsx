@@ -11,6 +11,7 @@ import { FormProvider } from './context/FormContext';
 const AuthPage = lazy(() => import('./pages/Auth/Auth'));
 const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
 const UserFormPage = lazy(() => import('./pages/UserFormPage/UserFormPage'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/dashboard" element={<InitAndRedirect />} />
               <Route path="/apply" element={<InitAndRedirect />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
         </div>

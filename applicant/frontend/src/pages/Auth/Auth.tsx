@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertCircle, Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
+import { AlertCircle, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { authService } from '../../services/auth';
 import MinimalNavbar from '../../components/MinimalNavbar';
 
-type AuthMode = 'sign_in' | 'sign_up' | 'forgot_password';
+type AuthMode = 'sign_in' | 'forgot_password';
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -19,8 +19,6 @@ export default function AuthPage() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    confirmPassword: '',
-    fullName: '',
   });
 
   useEffect(() => {
@@ -79,45 +77,6 @@ export default function AuthPage() {
         }
         
         navigate(redirectTo);
-      } else if (mode === 'sign_up') {
-        if (formData.password !== formData.confirmPassword) {
-          throw new Error('Passwords do not match');
-        }
-        if (formData.password.length < 6) {
-          throw new Error('Password must be at least 6 characters');
-        }
-        
-        // Parse full name into first and last name
-        const nameParts = formData.fullName.trim().split(/\s+/);
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
-        
-        const { data, error } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/apply`,
-            data: {
-              full_name: formData.fullName,
-              first_name: firstName,
-              last_name: lastName,
-            },
-          },
-        });
-        if (error) throw error;
-        
-        // Check if user is immediately confirmed (email confirmations disabled)
-        if (data.user && data.session) {
-          // User is immediately signed in, check role and redirect
-          const role = await authService.getUserRole();
-          if (role === 'applicant') {
-            navigate(redirectTo);
-          } else {
-            setSuccess('Account created successfully! Please sign in.');
-          }
-        } else {
-          setSuccess('Check your email for the confirmation link!');
-        }
       } else if (mode === 'forgot_password') {
         const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
           redirectTo: `${window.location.origin}/apply`,
@@ -141,7 +100,6 @@ export default function AuthPage() {
   const getTitle = () => {
     switch (mode) {
       case 'sign_in': return 'Welcome Back';
-      case 'sign_up': return 'Create Account';
       case 'forgot_password': return 'Reset Password';
     }
   };
@@ -149,7 +107,6 @@ export default function AuthPage() {
   const getSubtitle = () => {
     switch (mode) {
       case 'sign_in': return 'Sign in to continue your application';
-      case 'sign_up': return 'Get started with your benefits application';
       case 'forgot_password': return "We'll send you a reset link";
     }
   };
@@ -188,27 +145,6 @@ export default function AuthPage() {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Full Name - Sign Up Only */}
-                {mode === 'sign_up' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Full Name
-                      <span className="text-red-500 ml-1">*</span>
-                    </label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type="text"
-                        value={formData.fullName}
-                        onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="John Doe"
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
-
                 {/* Email */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -250,28 +186,6 @@ export default function AuthPage() {
                   </div>
                 )}
 
-                {/* Confirm Password - Sign Up Only */}
-                {mode === 'sign_up' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Confirm Password
-                      <span className="text-red-500 ml-1">*</span>
-                    </label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type="password"
-                        value={formData.confirmPassword}
-                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="••••••••"
-                        required
-                        minLength={6}
-                      />
-                    </div>
-                  </div>
-                )}
-
                 {/* Forgot Password Link */}
                 {mode === 'sign_in' && (
                   <div className="text-right">
@@ -296,7 +210,6 @@ export default function AuthPage() {
                   ) : (
                     <>
                       {mode === 'sign_in' && 'Sign In'}
-                      {mode === 'sign_up' && 'Create Account'}
                       {mode === 'forgot_password' && 'Send Reset Link'}
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </>
@@ -307,30 +220,6 @@ export default function AuthPage() {
 
             {/* Footer */}
             <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
-              {mode === 'sign_in' && (
-                <p className="text-sm text-center text-gray-600">
-                  Don't have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => switchMode('sign_up')}
-                    className="font-medium text-blue-600 hover:text-blue-800"
-                  >
-                    Sign up
-                  </button>
-                </p>
-              )}
-              {mode === 'sign_up' && (
-                <p className="text-sm text-center text-gray-600">
-                  Already have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => switchMode('sign_in')}
-                    className="font-medium text-blue-600 hover:text-blue-800"
-                  >
-                    Sign in
-                  </button>
-                </p>
-              )}
               {mode === 'forgot_password' && (
                 <p className="text-sm text-center text-gray-600">
                   Remember your password?{' '}

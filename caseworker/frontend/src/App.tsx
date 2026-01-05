@@ -10,6 +10,7 @@ import { ToastProvider } from './components/Toast';
 const AuthPage = lazy(() => import('./pages/Auth/Auth'));
 const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
 const ApplicationDetail = lazy(() => import('./pages/Dashboard/ApplicationDetail'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
         </div>
