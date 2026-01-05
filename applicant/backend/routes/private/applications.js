@@ -59,8 +59,7 @@ async function uploadFileToStorage(supabase, file, applicationId, userId, catego
     throw new Error(`Failed to upload file: ${uploadError.message}`);
   }
 
-  // WORKAROUND: Skip database record insertion to avoid foreign key issues
-  // Just return the file info with storage path - the application JSON will store references
+  // Prepare file record for database insertion
   const fileRecord = {
     id: fileId,
     application_id: applicationId,
@@ -75,8 +74,18 @@ async function uploadFileToStorage(supabase, file, applicationId, userId, catego
     document_year: metadata.document_year || null,
   };
 
-  // Return the file record without inserting to application_files table
-  // File references are stored in the application JSON fields instead
+  // Insert file record into application_files table
+  // Note: This requires the application to exist first (foreign key constraint)
+  const { error: insertError } = await supabase
+    .from('application_files')
+    .insert(fileRecord);
+
+  if (insertError) {
+    // If insertion fails, try to clean up the uploaded file
+    await supabase.storage.from(bucketName).remove([storagePath]);
+    throw new Error(`Failed to save file record: ${insertError.message}`);
+  }
+
   return fileRecord;
 }
 
@@ -408,8 +417,38 @@ const applicationSubmissionHandler = async (req, res) => {
       });
     }
 
-    // Upload all files to storage (no DB records - avoids FK issues)
-    const fileIds = await processAllFiles(supabase, req.files, applicationId, userId);
+    // Create application record first (minimal data) so files can reference it
+    const { data: createdApplication, error: createError } = await supabase
+      .from('applications')
+      .insert({
+        id: applicationId,
+        applicant_id: userId,
+        status: 'draft', // Will be updated to 'submitted' after files are uploaded
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      console.error('Application creation error:', createError);
+      return res.status(500).json({
+        error: 'Failed to create application',
+        message: createError.message,
+      });
+    }
+
+    // Upload all files to storage and insert into application_files
+    // Now that application exists, foreign key constraints will work
+    let fileIds;
+    try {
+      fileIds = await processAllFiles(supabase, req.files, applicationId, userId);
+    } catch (fileError) {
+      // If file upload fails, delete the application
+      await supabase.from('applications').delete().eq('id', applicationId);
+      return res.status(500).json({
+        error: 'Failed to upload files',
+        message: fileError.message,
+      });
+    }
 
     // Transform form data to database schema
     const applicationData = transformFormDataToSchema(formData, fileIds, userId);
@@ -434,10 +473,11 @@ const applicationSubmissionHandler = async (req, res) => {
     applicationData.submitted_at = new Date().toISOString();
     applicationData.status_changed_at = new Date().toISOString();
 
-    // Insert application into database
+    // Update application with all data
     const { data: application, error: insertError } = await supabase
       .from('applications')
-      .insert(applicationData)
+      .update(applicationData)
+      .eq('id', applicationId)
       .select()
       .single();
 

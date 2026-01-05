@@ -221,6 +221,19 @@ router.get('/applications/:id', async (req, res) => {
         .eq('id', assignment.id);
     }
 
+    // Get all files for this application
+    const { data: files, error: filesError } = await supabase
+      .from('application_files')
+      .select('*')
+      .eq('application_id', applicationId)
+      .eq('is_deleted', false)
+      .order('created_at', { ascending: true });
+
+    if (filesError) {
+      console.error('Files fetch error:', filesError);
+      // Non-fatal, continue without files
+    }
+
     // Extract AI reasoning data for easier frontend consumption
     const aiReasoning = {
       overall_recommendation: application.reasoning_overall_recommendation,
@@ -287,7 +300,9 @@ router.get('/applications/:id', async (req, res) => {
         completed_at: assignment.completed_at
       },
       // Convenience field for AI reasoning (structured)
-      ai_reasoning: aiReasoning
+      ai_reasoning: aiReasoning,
+      // Files metadata
+      files: files || []
     };
 
     res.json({
@@ -529,6 +544,156 @@ router.post('/applications/:id/recommendation', async (req, res) => {
     });
   } catch (error) {
     console.error('Recommendation submission error:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/private/dashboard/applications/:id/files
+ * Get all files for an application (metadata only)
+ */
+router.get('/applications/:id/files', async (req, res) => {
+  try {
+    const supabase = req.app.get('supabase');
+    const userDbId = req.userDbId;
+    const applicationId = req.params.id;
+
+    if (!userDbId) {
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'User database ID not found'
+      });
+    }
+
+    // Verify this application is assigned to the current caseworker
+    const { data: assignment, error: assignmentError } = await supabase
+      .from('assigned_applications')
+      .select('id')
+      .eq('application_id', applicationId)
+      .eq('reviewer_id', userDbId)
+      .single();
+
+    if (assignmentError || !assignment) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'This application is not assigned to you'
+      });
+    }
+
+    // Get all files for this application
+    const { data: files, error: filesError } = await supabase
+      .from('application_files')
+      .select('*')
+      .eq('application_id', applicationId)
+      .eq('is_deleted', false)
+      .order('created_at', { ascending: true });
+
+    if (filesError) {
+      console.error('Files fetch error:', filesError);
+      return res.status(500).json({
+        error: 'Failed to fetch files',
+        message: filesError.message
+      });
+    }
+
+    res.json({
+      success: true,
+      data: files || []
+    });
+  } catch (error) {
+    console.error('Files fetch error:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/private/dashboard/applications/:id/files/:fileId/download
+ * Get a signed URL to download a specific file
+ */
+router.get('/applications/:id/files/:fileId/download', async (req, res) => {
+  try {
+    const supabase = req.app.get('supabase');
+    const userDbId = req.userDbId;
+    const applicationId = req.params.id;
+    const fileId = req.params.fileId;
+
+    if (!userDbId) {
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'User database ID not found'
+      });
+    }
+
+    // Verify this application is assigned to the current caseworker
+    const { data: assignment, error: assignmentError } = await supabase
+      .from('assigned_applications')
+      .select('id')
+      .eq('application_id', applicationId)
+      .eq('reviewer_id', userDbId)
+      .single();
+
+    if (assignmentError || !assignment) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'This application is not assigned to you'
+      });
+    }
+
+    // Get file metadata
+    const { data: file, error: fileError } = await supabase
+      .from('application_files')
+      .select('*')
+      .eq('id', fileId)
+      .eq('application_id', applicationId)
+      .eq('is_deleted', false)
+      .single();
+
+    if (fileError || !file) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'File not found'
+      });
+    }
+
+    // Generate signed URL (valid for 1 hour)
+    const { data: signedUrlData, error: urlError } = await supabase
+      .storage
+      .from(file.storage_bucket)
+      .createSignedUrl(file.storage_path, 3600); // 1 hour expiry
+
+    if (urlError || !signedUrlData) {
+      console.error('Signed URL generation error:', urlError);
+      return res.status(500).json({
+        error: 'Failed to generate download URL',
+        message: urlError?.message || 'Unknown error'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        file: {
+          id: file.id,
+          file_name: file.file_name,
+          file_type: file.file_type,
+          file_size: file.file_size,
+          category: file.category,
+          description: file.description,
+          document_year: file.document_year,
+          created_at: file.created_at
+        },
+        download_url: signedUrlData.signedUrl,
+        expires_at: new Date(Date.now() + 3600 * 1000).toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('File download URL error:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message
