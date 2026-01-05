@@ -41,7 +41,6 @@ export default function MultiStepForm() {
   const {
     formData,
     updateFormData,
-    saveToLocalStorage,
     clearFormData,
     isLoaded,
     currentStep,
@@ -68,9 +67,8 @@ export default function MultiStepForm() {
       }
     }
 
-    // Mark current step as completed and save
+    // Mark current step as completed
     markStepCompleted(currentStep);
-    saveToLocalStorage();
 
     if (currentStep < STEPS.length) {
       setCurrentStep(currentStep + 1);
@@ -79,9 +77,6 @@ export default function MultiStepForm() {
   };
 
   const prevStep = () => {
-    // Save before going back
-    saveToLocalStorage();
-    
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
       window.scrollTo(0, 0);
@@ -89,8 +84,6 @@ export default function MultiStepForm() {
   };
 
   const goToStep = (step: number) => {
-    // Save before navigating
-    saveToLocalStorage();
     setCurrentStep(step);
     window.scrollTo(0, 0);
   };
