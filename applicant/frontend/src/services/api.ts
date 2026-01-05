@@ -158,39 +158,162 @@ function stripFilesFromFormData(formData: FormData): any {
 export const api = {
   /**
    * Submit a new application with form data and files
-   * Creates and submits the application in one call
+   * Returns immediately after submission is accepted (202 Accepted)
+   * Processing continues asynchronously on the server
    */
   async submitApplication(formData: FormData): Promise<SubmitApplicationResponse> {
-    const authHeader = await authService.getAuthHeader();
+    const submissionStartTime = Date.now();
+    const requestId = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
     
-    // Create FormData for multipart upload
-    const multipartForm = new FormData();
-    
-    // Add JSON form data (without files)
-    const jsonData = stripFilesFromFormData(formData);
-    multipartForm.append('formData', JSON.stringify(jsonData));
-    
-    // Collect and add all files
-    const files = collectFiles(formData);
-    files.forEach(({ fieldName, file }) => {
-      multipartForm.append(fieldName, file);
+    console.log('[FRONTEND] Starting application submission', {
+      requestId,
+      timestamp: new Date().toISOString(),
+      fileCount: collectFiles(formData).length,
     });
 
-    const response = await fetch(`${config.apiUrl}/api/private/applications`, {
-      method: 'POST',
-      headers: {
-        ...authHeader,
-        // Don't set Content-Type - browser will set it with boundary for multipart
-      },
-      body: multipartForm as any,
-    });
+    try {
+      console.log('[FRONTEND] Getting auth header...', { requestId });
+      const authHeader = await authService.getAuthHeader();
+      console.log('[FRONTEND] Got auth header', { 
+        requestId,
+        hasToken: !!authHeader.Authorization,
+        headerKeys: Object.keys(authHeader),
+      });
+      
+      // Create FormData for multipart upload
+      console.log('[FRONTEND] Creating multipart form...', { requestId });
+      const multipartForm = new FormData();
+      
+      // Add JSON form data (without files)
+      console.log('[FRONTEND] Stripping files from form data...', { requestId });
+      const jsonData = stripFilesFromFormData(formData);
+      console.log('[FRONTEND] Stripped files, stringifying JSON...', { 
+        requestId,
+        jsonDataKeys: Object.keys(jsonData),
+      });
+      multipartForm.append('formData', JSON.stringify(jsonData));
+      console.log('[FRONTEND] Added formData to multipart form', { requestId });
+      
+      // Collect and add all files
+      console.log('[FRONTEND] Collecting files...', { requestId });
+      const files = collectFiles(formData);
+      console.log('[FRONTEND] Collected files', { 
+        requestId,
+        fileCount: files.length,
+      });
+      const totalFileSize = files.reduce((sum, { file }) => sum + file.size, 0);
+      
+      console.log('[FRONTEND] Prepared submission data', {
+        requestId,
+        fileCount: files.length,
+        totalFileSize: `${(totalFileSize / 1024 / 1024).toFixed(2)}MB`,
+      });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Failed to submit application' }));
-      throw new Error(error.message || 'Failed to submit application');
+      console.log('[FRONTEND] Appending files to multipart form...', { requestId });
+      files.forEach(({ fieldName, file }) => {
+        multipartForm.append(fieldName, file);
+      });
+      console.log('[FRONTEND] All files appended to multipart form', { requestId });
+
+      const fetchStartTime = Date.now();
+      console.log('[FRONTEND] Sending submission request', {
+        requestId,
+        url: `${config.apiUrl}/api/private/applications`,
+      });
+
+      const response = await fetch(`${config.apiUrl}/api/private/applications`, {
+        method: 'POST',
+        headers: {
+          ...authHeader,
+          // Don't set Content-Type - browser will set it with boundary for multipart
+        },
+        body: multipartForm as any,
+      });
+
+      const fetchDuration = Date.now() - fetchStartTime;
+      const totalDuration = Date.now() - submissionStartTime;
+
+      console.log('[FRONTEND] Received submission response', {
+        requestId,
+        status: response.status,
+        statusText: response.statusText,
+        fetchDuration: `${fetchDuration}ms`,
+        totalDuration: `${totalDuration}ms`,
+      });
+
+      // Accept both 201 (synchronous) and 202 (async) responses
+      if (response.status === 202) {
+        // Async processing - return immediately
+        const responseData = await response.json();
+        console.log('[FRONTEND] Submission accepted for async processing', {
+          requestId,
+          applicationId: responseData.data?.application_id,
+          status: responseData.data?.status,
+        });
+        return responseData;
+      }
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to submit application';
+        let errorDetails: any = {};
+        
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          errorDetails = errorData;
+        } catch (e) {
+          // If response isn't JSON, try to get text
+          try {
+            const text = await response.text();
+            if (text) {
+              errorMessage = text;
+            }
+          } catch (textError) {
+            // Fall back to status text
+            errorMessage = response.statusText || errorMessage;
+          }
+        }
+        
+        // Special handling for rate limiting
+        if (response.status === 429) {
+          errorMessage = errorDetails.message || errorDetails.error || 'Too many requests. Please wait before submitting again.';
+          if (errorDetails.retryAfter) {
+            errorMessage += ` Retry after: ${errorDetails.retryAfter}`;
+          }
+        }
+        
+        console.error('[FRONTEND] Submission failed', {
+          requestId,
+          status: response.status,
+          statusText: response.statusText,
+          error: errorMessage,
+          errorDetails,
+        });
+        throw new Error(errorMessage);
+      }
+
+      // 201 Created (synchronous response - legacy support)
+      const responseData = await response.json();
+      console.log('[FRONTEND] Submission completed synchronously', {
+        requestId,
+        applicationId: responseData.data?.application_id,
+        status: responseData.data?.status,
+        totalDuration: `${totalDuration}ms`,
+      });
+      return responseData;
+
+    } catch (error) {
+      const totalDuration = Date.now() - submissionStartTime;
+      console.error('[FRONTEND] Submission error', {
+        requestId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        errorType: error?.constructor?.name,
+        stack: error instanceof Error ? error.stack : undefined,
+        totalDuration: `${totalDuration}ms`,
+      });
+      console.error('[FRONTEND] Full error object:', error);
+      throw error;
     }
-
-    return response.json();
   },
 
   /**

@@ -363,117 +363,113 @@ const uploadFields = upload.fields([
 ]);
 
 /**
- * POST /api/private/applications
- * Submit a new application with all form data and files
- * Creates the application and immediately submits it
+ * Process application submission asynchronously
+ * This function handles file uploads, data transformation, and final submission
  */
-const applicationSubmissionHandler = async (req, res) => {
+async function processApplicationSubmission(supabase, applicationId, userId, formData, files) {
+  const startTime = Date.now();
+  console.log(`[SUBMISSION] Starting async processing for application ${applicationId}`, {
+    userId,
+    timestamp: new Date().toISOString(),
+  });
+
+  // Update application to track processing has started
   try {
-    const supabase = req.app.get('supabase');
-    const authUser = req.user;
-
-    // Get user record (created by database trigger on signup)
-    const user = await getUser(supabase, authUser);
-    const userId = user.id;
-
-    // Check if user already has a pending or submitted application
-    const { data: existingApplications, error: checkError } = await supabase
+    await supabase
       .from('applications')
-      .select('id, status')
-      .eq('applicant_id', userId)
-      .in('status', ['draft', 'submitted', 'under_review'])
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (checkError) {
-      console.error('Error checking existing applications:', checkError);
-      return res.status(500).json({
-        error: 'Internal Server Error',
-        message: 'Failed to check existing applications',
-      });
-    }
-
-    if (existingApplications && existingApplications.length > 0) {
-      const existingApp = existingApplications[0];
-      return res.status(409).json({
-        error: 'Application Already Exists',
-        message: `You already have an application in "${existingApp.status}" status. Please complete or cancel it before submitting a new one.`,
-        existing_application_id: existingApp.id,
-        existing_status: existingApp.status,
-      });
-    }
-
-    // Generate application ID
-    const applicationId = uuidv4();
-
-    // Parse form data
-    let formData;
-    try {
-      formData = JSON.parse(req.body.formData || '{}');
-    } catch (e) {
-      return res.status(400).json({
-        error: 'Invalid form data',
-        message: 'Form data must be valid JSON',
-      });
-    }
-
-    // Create application record first (minimal data) so files can reference it
-    const { data: createdApplication, error: createError } = await supabase
-      .from('applications')
-      .insert({
-        id: applicationId,
-        applicant_id: userId,
-        status: 'draft', // Will be updated to 'submitted' after files are uploaded
+      .update({
+        status_notes: 'Processing submission...',
+        updated_at: new Date().toISOString(),
       })
-      .select()
-      .single();
+      .eq('id', applicationId);
+    console.log(`[SUBMISSION] Marked application ${applicationId} as processing`);
+  } catch (updateError) {
+    console.error(`[SUBMISSION] Failed to update processing status for application ${applicationId}:`, {
+      error: updateError.message,
+    });
+    // Non-fatal, continue processing
+  }
 
-    if (createError) {
-      console.error('Application creation error:', createError);
-      return res.status(500).json({
-        error: 'Failed to create application',
-        message: createError.message,
-      });
-    }
-
+  try {
     // Upload all files to storage and insert into application_files
-    // Now that application exists, foreign key constraints will work
     let fileIds;
     try {
-      fileIds = await processAllFiles(supabase, req.files, applicationId, userId);
-    } catch (fileError) {
-      // If file upload fails, delete the application
-      await supabase.from('applications').delete().eq('id', applicationId);
-      return res.status(500).json({
-        error: 'Failed to upload files',
-        message: fileError.message,
+      const fileCount = files ? Object.keys(files).reduce((sum, key) => sum + (files[key]?.length || 0), 0) : 0;
+      console.log(`[SUBMISSION] Processing files for application ${applicationId}`, {
+        fileCount,
+        fileFields: files ? Object.keys(files) : [],
       });
+      
+      fileIds = await processAllFiles(supabase, files, applicationId, userId);
+      
+      const uploadedFileIds = Object.keys(fileIds).filter(k => {
+        const val = fileIds[k];
+        return val !== null && val !== undefined && (Array.isArray(val) ? val.length > 0 : true);
+      });
+      
+      console.log(`[SUBMISSION] Files processed successfully for application ${applicationId}`, {
+        uploadedFileCount: uploadedFileIds.length,
+        fileIdFields: uploadedFileIds,
+      });
+    } catch (fileError) {
+      console.error(`[SUBMISSION] File upload failed for application ${applicationId}:`, {
+        error: fileError.message,
+        stack: fileError.stack,
+        errorType: fileError.constructor.name,
+      });
+      
+      // Update application status to indicate failure
+      try {
+        await supabase
+          .from('applications')
+          .update({
+            status: 'draft',
+            status_notes: `Submission failed: ${fileError.message}`,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', applicationId);
+        console.log(`[SUBMISSION] Updated application ${applicationId} status to draft after file upload failure`);
+      } catch (updateError) {
+        console.error(`[SUBMISSION] Failed to update application status after file error:`, {
+          applicationId,
+          error: updateError.message,
+        });
+      }
+      
+      throw fileError;
     }
 
     // Transform form data to database schema
+    console.log(`[SUBMISSION] Transforming form data for application ${applicationId}`);
     const applicationData = transformFormDataToSchema(formData, fileIds, userId);
     applicationData.id = applicationId;
 
     // Hash SSN if provided
     if (formData.ssn) {
+      console.log(`[SUBMISSION] Hashing SSN for application ${applicationId}`);
       const { data: ssnHash, error: ssnError } = await supabase.rpc('hash_ssn', {
         ssn: formData.ssn,
       });
 
       if (ssnError) {
-        console.error('SSN hashing error:', ssnError);
+        console.error(`[SUBMISSION] SSN hashing error for application ${applicationId}:`, {
+          error: ssnError.message,
+        });
         // Continue without SSN hash if it fails
       } else {
         applicationData.ssn_hash = ssnHash;
+        console.log(`[SUBMISSION] SSN hashed successfully for application ${applicationId}`);
       }
     }
 
-    // Set status to submitted directly
+    // Set status to submitted
     applicationData.status = 'submitted';
     applicationData.submitted_at = new Date().toISOString();
     applicationData.status_changed_at = new Date().toISOString();
+    applicationData.status_notes = null; // Clear processing note
 
     // Update application with all data
+    console.log(`[SUBMISSION] Updating application ${applicationId} with full data`);
     const { data: application, error: insertError } = await supabase
       .from('applications')
       .update(applicationData)
@@ -482,27 +478,56 @@ const applicationSubmissionHandler = async (req, res) => {
       .single();
 
     if (insertError) {
-      console.error('Application insert error:', insertError);
-      return res.status(500).json({
-        error: 'Failed to submit application',
-        message: insertError.message,
+      console.error(`[SUBMISSION] Application update error for ${applicationId}:`, {
+        error: insertError.message,
+        code: insertError.code,
+        details: insertError.details,
+        hint: insertError.hint,
       });
+      
+      // Try to update status to indicate error
+      try {
+        await supabase
+          .from('applications')
+          .update({
+            status: 'draft',
+            status_notes: `Submission failed: ${insertError.message}`,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', applicationId);
+      } catch (updateError) {
+        console.error(`[SUBMISSION] Failed to update status after insert error:`, {
+          applicationId,
+          error: updateError.message,
+        });
+      }
+      
+      throw insertError;
     }
+
+    console.log(`[SUBMISSION] Application ${applicationId} updated successfully`, {
+      status: application.status,
+      submittedAt: application.submitted_at,
+    });
 
     // Create history record for submission
     const { error: historyError } = await supabase
       .from('application_status_history')
       .insert({
         application_id: applicationId,
-        previous_status: null,
+        previous_status: 'draft',
         new_status: 'submitted',
         changed_by: userId,
         notes: 'Application submitted',
       });
 
     if (historyError) {
-      console.error('History insert error:', historyError);
+      console.error(`[SUBMISSION] History insert error for application ${applicationId}:`, {
+        error: historyError.message,
+      });
       // Non-fatal, continue
+    } else {
+      console.log(`[SUBMISSION] History record created for application ${applicationId}`);
     }
 
     // Add application to processing queue for AI processing
@@ -516,21 +541,207 @@ const applicationSubmissionHandler = async (req, res) => {
       });
 
     if (queueError) {
-      console.error('Queue insert error:', queueError);
+      console.error(`[SUBMISSION] Queue insert error for application ${applicationId}:`, {
+        error: queueError.message,
+      });
       // Non-fatal, continue - application was created successfully
+    } else {
+      console.log(`[SUBMISSION] Application ${applicationId} added to processing queue`);
     }
 
-    res.status(201).json({
+    const duration = Date.now() - startTime;
+    console.log(`[SUBMISSION] Successfully completed processing for application ${applicationId}`, {
+      duration: `${duration}ms`,
+      submitted_at: application.submitted_at,
+    });
+
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error(`[SUBMISSION] Failed to process application ${applicationId}`, {
+      error: error.message,
+      stack: error.stack,
+      duration: `${duration}ms`,
+    });
+
+    // Update application status to indicate failure
+    try {
+      const errorMessage = error.message || 'Unknown error during processing';
+      await supabase
+        .from('applications')
+        .update({
+          status: 'draft',
+          status_notes: `Submission failed: ${errorMessage}`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', applicationId);
+      console.log(`[SUBMISSION] Updated application ${applicationId} status to draft after processing failure`);
+    } catch (updateError) {
+      console.error(`[SUBMISSION] Failed to update application status after error:`, {
+        applicationId,
+        originalError: error.message,
+        updateError: updateError.message,
+      });
+    }
+    
+    // Don't re-throw - error is already logged and handled
+    // The caller (setImmediate) will catch it if needed
+  }
+}
+
+/**
+ * POST /api/private/applications
+ * Submit a new application with all form data and files
+ * Returns 202 Accepted immediately and processes asynchronously
+ */
+const applicationSubmissionHandler = async (req, res) => {
+  const requestStartTime = Date.now();
+  const requestId = uuidv4();
+  
+  try {
+    const supabase = req.app.get('supabase');
+    const authUser = req.user;
+
+    console.log(`[SUBMISSION] Received submission request ${requestId}`, {
+      userId: authUser?.id,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Get user record (created by database trigger on signup)
+    const user = await getUser(supabase, authUser);
+    const userId = user.id;
+
+    console.log(`[SUBMISSION] User record retrieved for request ${requestId}`, {
+      userId,
+    });
+
+    // Check if user already has a pending or submitted application
+    const { data: existingApplications, error: checkError } = await supabase
+      .from('applications')
+      .select('id, status')
+      .eq('applicant_id', userId)
+      .in('status', ['draft', 'submitted', 'under_review'])
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (checkError) {
+      console.error(`[SUBMISSION] Error checking existing applications for request ${requestId}:`, {
+        error: checkError.message,
+        userId,
+      });
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'Failed to check existing applications',
+      });
+    }
+
+    if (existingApplications && existingApplications.length > 0) {
+      const existingApp = existingApplications[0];
+      console.log(`[SUBMISSION] Existing application found for request ${requestId}`, {
+        existingApplicationId: existingApp.id,
+        existingStatus: existingApp.status,
+        userId,
+      });
+      return res.status(409).json({
+        error: 'Application Already Exists',
+        message: `You already have an application in "${existingApp.status}" status. Please complete or cancel it before submitting a new one.`,
+        existing_application_id: existingApp.id,
+        existing_status: existingApp.status,
+      });
+    }
+
+    // Generate application ID
+    const applicationId = uuidv4();
+    console.log(`[SUBMISSION] Generated application ID ${applicationId} for request ${requestId}`);
+
+    // Parse form data
+    let formData;
+    try {
+      formData = JSON.parse(req.body.formData || '{}');
+      console.log(`[SUBMISSION] Form data parsed for request ${requestId}`, {
+        hasFormData: !!formData,
+        fields: Object.keys(formData).length,
+      });
+    } catch (e) {
+      console.error(`[SUBMISSION] Invalid form data for request ${requestId}:`, {
+        error: e.message,
+      });
+      return res.status(400).json({
+        error: 'Invalid form data',
+        message: 'Form data must be valid JSON',
+      });
+    }
+
+    // Create application record first (minimal data) so files can reference it
+    // Status is 'draft' initially, will be updated to 'submitted' after async processing
+    console.log(`[SUBMISSION] Creating application record ${applicationId} for request ${requestId}`);
+    const { data: createdApplication, error: createError } = await supabase
+      .from('applications')
+      .insert({
+        id: applicationId,
+        applicant_id: userId,
+        status: 'draft',
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      console.error(`[SUBMISSION] Application creation error for request ${requestId}:`, {
+        error: createError.message,
+        code: createError.code,
+        applicationId,
+      });
+      return res.status(500).json({
+        error: 'Failed to create application',
+        message: createError.message,
+      });
+    }
+
+    console.log(`[SUBMISSION] Application record created ${applicationId} for request ${requestId}`);
+
+    // Store files in memory for async processing
+    // We need to preserve the files since they're in memory buffers
+    const filesForProcessing = req.files;
+
+    // Return 202 Accepted immediately - processing will continue asynchronously
+    const responseTime = Date.now() - requestStartTime;
+    console.log(`[SUBMISSION] Returning 202 Accepted for request ${requestId}`, {
+      applicationId,
+      responseTime: `${responseTime}ms`,
+    });
+
+    res.status(202).json({
       success: true,
+      message: 'Application submission received and is being processed',
       data: {
         application_id: applicationId,
-        status: 'submitted',
-        submitted_at: application.submitted_at,
-        created_at: application.created_at,
+        status: 'processing',
+        created_at: createdApplication.created_at,
       },
     });
+
+    // Process asynchronously (don't await - let it run in background)
+    // Use setImmediate to ensure response is sent first
+    setImmediate(async () => {
+      try {
+        await processApplicationSubmission(supabase, applicationId, userId, formData, filesForProcessing);
+      } catch (error) {
+        // Error is already logged in processApplicationSubmission
+        // This catch prevents unhandled promise rejection
+        console.error(`[SUBMISSION] Unhandled error in async processing for request ${requestId}:`, {
+          error: error.message,
+          stack: error.stack,
+          applicationId,
+        });
+      }
+    });
+
   } catch (error) {
-    console.error('Application submission error:', error);
+    const responseTime = Date.now() - requestStartTime;
+    console.error(`[SUBMISSION] Application submission error for request ${requestId}:`, {
+      error: error.message,
+      stack: error.stack,
+      responseTime: `${responseTime}ms`,
+    });
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message,

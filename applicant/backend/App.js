@@ -80,12 +80,21 @@ const privateRateLimiter = rateLimit({
 });
 
 // Heavy rate limiter for application submissions (DB writes)
+// More lenient in development, stricter in production
+const submissionWindow = process.env.NODE_ENV === 'production' 
+  ? 60 * 60 * 1000  // 1 hour in production
+  : 5 * 60 * 1000;  // 5 minutes in development
+
+const submissionMax = process.env.NODE_ENV === 'production' 
+  ? 1   // 1 submission per hour in production
+  : 100; // 10 submissions per 5 minutes in development
+
 const applicationSubmissionRateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 1, // Only 1 submission per hour
+  windowMs: submissionWindow,
+  max: submissionMax,
   message: {
     error: 'Too many application submissions. Please wait before submitting again.',
-    retryAfter: '1 hour'
+    retryAfter: process.env.NODE_ENV === 'production' ? '1 hour' : '5 minutes'
   },
   standardHeaders: true,
   legacyHeaders: false,

@@ -89,21 +89,46 @@ export default function MultiStepForm() {
   };
 
   const handleSubmit = async () => {
+    const submitStartTime = Date.now();
     setIsSubmitting(true);
+    
+    console.log('[FORM] Starting form submission', {
+      timestamp: new Date().toISOString(),
+      step: currentStep,
+    });
+
     try {
-      // Submit the application (creates and submits in one call)
-      await api.submitApplication(formData);
+      // Submit the application - returns immediately after acceptance (202)
+      // Processing continues asynchronously on the server
+      const response = await api.submitApplication(formData);
       
-      showToast('Application submitted successfully! You will receive a confirmation email shortly.', 'success');
+      const submitDuration = Date.now() - submitStartTime;
+      console.log('[FORM] Submission accepted', {
+        applicationId: response.data?.application_id,
+        status: response.data?.status,
+        duration: `${submitDuration}ms`,
+      });
+      
+      // Show success message immediately - processing continues in background
+      showToast(
+        'Application submitted successfully! Your application is being processed. You will receive a confirmation email shortly.', 
+        'success'
+      );
       
       // Clear form data after successful submission
       clearFormData();
       
-      // Redirect to dashboard
+      // Redirect to dashboard immediately - don't wait for full processing
       navigate('/dashboard');
       
     } catch (error) {
-      console.error('Submission failed', error);
+      const submitDuration = Date.now() - submitStartTime;
+      console.error('[FORM] Submission failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        duration: `${submitDuration}ms`,
+      });
+      
       const errorMessage = error instanceof Error ? error.message : 'Submission failed. Please try again.';
       showToast(errorMessage, 'error');
     } finally {
