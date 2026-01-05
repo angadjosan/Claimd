@@ -372,7 +372,7 @@ const applicationSubmissionHandler = async (req, res) => {
       .from('applications')
       .select('id, status')
       .eq('applicant_id', userId)
-      .in('status', ['draft', 'submitted', 'processing'])
+      .in('status', ['draft', 'submitted', 'under_review'])
       .order('created_at', { ascending: false })
       .limit(1);
 
@@ -584,7 +584,7 @@ router.get('/:id', async (req, res) => {
 
 /**
  * DELETE /api/private/applications/:id/cancel
- * Cancel an in-progress application (draft, submitted, or processing)
+ * Cancel an in-progress application (draft, submitted, or under_review)
  */
 router.delete('/:id/cancel', async (req, res) => {
   try {
@@ -611,8 +611,8 @@ router.delete('/:id/cancel', async (req, res) => {
       });
     }
 
-    // Only allow cancellation of draft, submitted, or processing applications
-    if (!['draft', 'submitted', 'processing'].includes(application.status)) {
+    // Only allow cancellation of draft, submitted, or under_review applications
+    if (!['draft', 'submitted', 'under_review'].includes(application.status)) {
       return res.status(400).json({
         error: 'Cannot Cancel',
         message: `Application in "${application.status}" status cannot be cancelled`,
