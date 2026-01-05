@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Claimd - Complete Application Startup Script
-# This script starts all services: Supabase, backends, frontends, and AI worker
+# This script starts all services: backends, frontends, and AI worker
 
 set -e  # Exit on error
 
@@ -32,12 +32,6 @@ cleanup() {
         rm -f "$PID_FILE"
     fi
     
-    # Stop Supabase
-    if command -v supabase &> /dev/null; then
-        echo -e "${YELLOW}Stopping Supabase...${NC}"
-        supabase stop 2>/dev/null || true
-    fi
-    
     echo -e "${GREEN}All services stopped.${NC}"
     exit 0
 }
@@ -58,7 +52,6 @@ check_command() {
 check_command node
 check_command npm
 check_command python3
-check_command supabase
 
 echo -e "${GREEN}✓ All prerequisites met${NC}\n"
 
@@ -91,28 +84,6 @@ wait_for_service() {
     echo -e "${RED}✗ $service_name failed to start${NC}"
     return 1
 }
-
-# Start Supabase
-echo -e "${BLUE}Starting Supabase...${NC}"
-if supabase status 2>/dev/null | grep -q "local development setup is running"; then
-    echo -e "${YELLOW}Supabase is already running${NC}"
-else
-    echo -e "${YELLOW}Starting Supabase (this may take a moment)...${NC}"
-    if supabase start 2>&1 | tee /tmp/supabase-start.log; then
-        echo -e "${GREEN}✓ Supabase started${NC}"
-    else
-        # Check if it's actually running despite the error
-        if supabase status 2>/dev/null | grep -q "local development setup is running"; then
-            echo -e "${YELLOW}Supabase is running (some optional services may have failed to start)${NC}"
-        else
-            echo -e "${RED}✗ Failed to start Supabase. Check /tmp/supabase-start.log for details${NC}"
-            echo -e "${YELLOW}You may need to run: supabase stop && supabase start${NC}"
-        fi
-    fi
-fi
-
-# Wait a bit for Supabase to fully initialize
-sleep 3
 
 # Check if dependencies need to be installed
 install_deps() {
@@ -240,7 +211,6 @@ echo -e "${GREEN}           All services are starting up!${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}\n"
 
 echo -e "${BLUE}Service URLs:${NC}"
-echo -e "  ${GREEN}Supabase API:${NC}        http://localhost:54321"
 echo -e "  ${GREEN}Applicant Frontend:${NC}  http://localhost:5173"
 echo -e "  ${GREEN}Applicant Backend:${NC}   http://localhost:3001"
 echo -e "  ${GREEN}Caseworker Frontend:${NC} http://localhost:5191"

@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { api } from '../../services/api';
-import { authService } from '../../services/auth';
 import MinimalNavbar from '../../components/MinimalNavbar';
 import { useToast } from '../../components/Toast';
-import { FileText, Plus, Clock, CheckCircle, XCircle, AlertCircle, LogOut, X } from 'lucide-react';
+import { FileText, Plus, Clock, CheckCircle, XCircle, AlertCircle, X } from 'lucide-react';
 
 interface ApplicationSummary {
   id?: string;
@@ -75,7 +74,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const navigate = useNavigate();
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -121,11 +119,6 @@ export default function Dashboard() {
     return ['draft', 'submitted', 'processing'].includes(lowerStatus);
   }
 
-  async function handleLogout() {
-    await authService.logout();
-    navigate('/');
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <MinimalNavbar />
@@ -139,13 +132,6 @@ export default function Dashboard() {
               <p className="text-gray-600">Track and manage your disability benefit applications</p>
             </div>
             <div className="flex items-center gap-4 mt-4 sm:mt-0">
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="text-sm">Sign Out</span>
-              </button>
               <Link
                 to="/apply"
                 className="flex items-center gap-2 px-6 py-3 rounded-lg text-white font-medium transition-opacity duration-300 hover:opacity-90"
