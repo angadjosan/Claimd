@@ -83,6 +83,25 @@ class AuthService {
     const token = await this.getAccessToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
+
+  async getUserRole(): Promise<string | null> {
+    try {
+      const user = await this.getUser();
+      if (!user) return null;
+
+      const { data, error } = await supabase
+        .from('users')
+        .select('role')
+        .eq('auth_id', user.id)
+        .single();
+
+      if (error || !data) return null;
+      return data.role;
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+      return null;
+    }
+  }
 }
 
 export const authService = new AuthService();

@@ -11,22 +11,73 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
+  const [hasCorrectRole, setHasCorrectRole] = useState<boolean | null>(null);
   const location = useLocation();
 
   useEffect(() => {
-    // Check initial session
-    authService.getSession().then((session) => {
-      setSession(session);
+    let isMounted = true;
+
+    // Check initial session and role
+    const checkAuth = async () => {
+      const currentSession = await authService.getSession();
+      if (!isMounted) return;
+
+      if (!currentSession) {
+        setSession(null);
+        setHasCorrectRole(false);
+        setIsLoading(false);
+        return;
+      }
+
+      setSession(currentSession);
+      
+      // Check role
+      const role = await authService.getUserRole();
+      if (!isMounted) return;
+
+      if (role === 'applicant') {
+        setHasCorrectRole(true);
+      } else {
+        setHasCorrectRole(false);
+        // Sign out user with wrong role
+        await authService.logout().catch(() => {});
+      }
+      
       setIsLoading(false);
-    });
+    };
+
+    checkAuth();
 
     // Subscribe to auth changes
-    const { data: { subscription } } = authService.onAuthStateChange((_event, session) => {
-      setSession(session);
+    const { data: { subscription } } = authService.onAuthStateChange(async (_event, newSession) => {
+      if (!isMounted) return;
+
+      if (!newSession) {
+        setSession(null);
+        setHasCorrectRole(false);
+        setIsLoading(false);
+        return;
+      }
+
+      setSession(newSession);
+      
+      // Check role
+      const role = await authService.getUserRole();
+      if (!isMounted) return;
+
+      if (role === 'applicant') {
+        setHasCorrectRole(true);
+      } else {
+        setHasCorrectRole(false);
+        // Sign out user with wrong role
+        await authService.logout().catch(() => {});
+      }
+      
       setIsLoading(false);
     });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);
@@ -42,7 +93,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!session) {
+  if (!session || hasCorrectRole === false) {
     const redirectPath = encodeURIComponent(location.pathname + location.search);
     return <Navigate to={`/auth?redirect=${redirectPath}`} replace />;
   }

@@ -24,17 +24,31 @@ export default function AuthPage() {
   });
 
   useEffect(() => {
-    // Check if already logged in
-    authService.getSession().then((session) => {
+    // Check if already logged in and has correct role
+    authService.getSession().then(async (session) => {
       if (session) {
-        navigate(redirectTo);
+        const role = await authService.getUserRole();
+        if (role === 'caseworker') {
+          navigate(redirectTo);
+        } else if (role) {
+          // User has wrong role, sign them out
+          await supabase.auth.signOut();
+          setError('Access denied. This account is not authorized for caseworker access.');
+        }
       }
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = authService.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = authService.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        navigate(redirectTo);
+        const role = await authService.getUserRole();
+        if (role === 'caseworker') {
+          navigate(redirectTo);
+        } else if (role) {
+          // User has wrong role, sign them out
+          await supabase.auth.signOut();
+          setError('Access denied. This account is not authorized for caseworker access.');
+        }
       }
     });
 
@@ -56,6 +70,14 @@ export default function AuthPage() {
           password: formData.password,
         });
         if (error) throw error;
+        
+        // Check user role after login
+        const role = await authService.getUserRole();
+        if (role !== 'caseworker') {
+          await supabase.auth.signOut();
+          throw new Error('Access denied. This account is not authorized for caseworker access.');
+        }
+        
         navigate(redirectTo);
       } else if (mode === 'sign_up') {
         if (formData.password !== formData.confirmPassword) {
