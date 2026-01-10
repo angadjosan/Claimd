@@ -57,6 +57,42 @@ export interface Application {
   applicant_ssn?: string;
 }
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
+const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB total (reasonable limit for multiple files)
+
+/**
+ * Validates file sizes before upload
+ * @throws Error if any file exceeds 10MB or total exceeds 100MB
+ */
+function validateFileSizes(files: { fieldName: string; file: File; metadata?: any }[]): void {
+  let totalSize = 0;
+  const oversizedFiles: string[] = [];
+
+  for (const { file } of files) {
+    // Check individual file size
+    if (file.size > MAX_FILE_SIZE) {
+      oversizedFiles.push(file.name);
+    }
+    totalSize += file.size;
+  }
+
+  // Check for oversized individual files
+  if (oversizedFiles.length > 0) {
+    throw new Error(
+      `The following file(s) exceed the 10MB limit: ${oversizedFiles.join(', ')}. Please upload smaller files.`
+    );
+  }
+
+  // Check total size
+  if (totalSize > MAX_TOTAL_SIZE) {
+    const totalSizeMB = (totalSize / 1024 / 1024).toFixed(2);
+    const maxTotalSizeMB = (MAX_TOTAL_SIZE / 1024 / 1024).toFixed(0);
+    throw new Error(
+      `Total upload size (${totalSizeMB}MB) exceeds the ${maxTotalSizeMB}MB limit. Please reduce the number or size of files.`
+    );
+  }
+}
+
 /**
  * Collects all files from the form data and returns them with their field names
  */
@@ -201,6 +237,14 @@ export const api = {
         requestId,
         fileCount: files.length,
       });
+      
+      // Validate file sizes before upload
+      if (files.length > 0) {
+        console.log('[FRONTEND] Validating file sizes...', { requestId });
+        validateFileSizes(files);
+        console.log('[FRONTEND] File size validation passed', { requestId });
+      }
+      
       const totalFileSize = files.reduce((sum, { file }) => sum + file.size, 0);
       
       console.log('[FRONTEND] Prepared submission data', {

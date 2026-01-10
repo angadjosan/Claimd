@@ -43,14 +43,6 @@ Three Vite/React apps served via CloudFront:
 - Supabase JWT verification middleware in each API
 - Role enforcement: applicant vs caseworker tokens
 
-> ⚠️ **File Upload Limit: ≤10MB**  
-> The codebase must enforce this via:
-> - Request size checks in API layer
-> - Multipart upload limits (multer config)
-> - Client-side validation before upload
-> 
-> Files continue to be stored in **Supabase Storage**.
-
 ---
 
 ### 3. AI Worker → SQS + Lambda *(~$0–5/month)*
@@ -122,11 +114,6 @@ Three Vite/React apps served via CloudFront:
 
 ## Required Codebase Changes
 
-### 1. Enforce ≤10MB File Uploads
-- [ ] Reject oversized requests at API layer (`multer` limits)
-- [ ] Add client-side validation before upload
-- [ ] Files continue to be stored in Supabase Storage
-
 ### 2. Refactor AI Worker for SQS
 - [ ] Replace polling loop with SQS event handler
 - [ ] Add Lambda handler wrapper
@@ -140,10 +127,6 @@ Three Vite/React apps served via CloudFront:
 ### 4. CORS Configuration
 - [ ] Allow origins: `mysite.com`, `applicant.mysite.com`, `caseworker.mysite.com`
 - [ ] Configure in both Express apps and API Gateway
-
-### 5. Lambda Adapters
-- [ ] Wrap Express apps with `@vendia/serverless-express` or similar
-- [ ] Export Lambda handler function
 
 ---
 
@@ -162,7 +145,6 @@ These storage options ensure the files are accessible to the AI worker Lambda fu
 
 ## Next Steps
 
-1. **Create Lambda adapters** for Express backends
 2. **Refactor AI worker** to use SQS event handler
 3. **Set up AWS infrastructure** (Terraform or CloudFormation)
 4. **Create GitHub Actions workflows** with OIDC auth
