@@ -14,8 +14,6 @@
 
 ---
 
-## Recommended Approach: Serverless + Event-Driven
-
 ### 1. Static Frontends → S3 + CloudFront *(~$1–5/month)*
 
 Three Vite/React apps served via CloudFront:
@@ -98,37 +96,24 @@ Three Vite/React apps served via CloudFront:
 | IAM Roles | Per-service isolation, GitHub OIDC |
 | SSM Parameter Store | Secrets & environment variables |
 
+## Next Steps
 ---
 
-## Estimated Monthly Costs
+3. **Set up AWS infrastructure** (Terraform or CloudFormation)
 
-| Component | Est. Cost |
-|-----------|-----------|
-| S3 + CloudFront (3 frontends) | $1–5 |
-| API Gateway + Lambda (2 APIs) | $0–10 |
-| SQS + Lambda (AI worker) | <$1 |
-| SSM Parameter Store | ~$1 |
-| **Total** | **~$5–20/month** |
+ Create S3 buckets (3) + CloudFront distributions (3) for the frontends
 
-*(Supabase costs are separate and depend on usage tier.)*
+ Create API Gateway HTTP APIs (2) and connect each to its Lambda
 
-## Required Codebase Changes
+ Create SQS queue + DLQ and wire to the AI worker Lambda (event source mapping)
 
-### 2. Refactor AI Worker for SQS
-- [ ] Replace polling loop with SQS event handler
-- [ ] Add Lambda handler wrapper
-- [ ] Configure timeout and memory settings
+ Create SSM Parameter Store entries for env vars (Supabase URL/key, Claude key, etc.)
 
-### 3. JWT Verification Middleware
-- [ ] Validate Supabase JWTs in both APIs
-- [ ] Enforce `applicant` vs `caseworker` role claims
-- [ ] Return 401/403 for invalid/unauthorized tokens
+ Create IAM roles (least privilege) for:
 
-### 4. CORS Configuration
-- [ ] Allow origins: `mysite.com`, `applicant.mysite.com`, `caseworker.mysite.com`
-- [ ] Configure in both Express apps and API Gateway
+GitHub Actions OIDC deployer
 
----
+Each Lambda (API + worker)
 
 ## AWS Storage for AI Service Files
 
@@ -139,15 +124,13 @@ Since the schemas and markdown files are specific to the AI service, they can be
 - **SSM Parameter Store**: For smaller configuration files or critical prompts, consider storing them as secure parameters in AWS Systems Manager Parameter Store.
   - Example: `/ai-service/schemas/application_schema` or `/ai-service/prompts/extractor_prompt`
 
-These storage options ensure the files are accessible to the AI worker Lambda function while maintaining security and scalability.
-
----
-
-## Next Steps
-
-2. **Refactor AI worker** to use SQS event handler
-3. **Set up AWS infrastructure** (Terraform or CloudFormation)
-4. **Create GitHub Actions workflows** with OIDC auth
 5. **Configure environment variables** in SSM Parameter Store
+
+### 4. CORS Configuration
+- [ ] Allow origins: `mysite.com`, `applicant.mysite.com`, `caseworker.mysite.com`
+- [ ] Configure in both Express apps and API Gateway
+
+4. **Create GitHub Actions workflows** with OIDC auth
+
 6. **Set up custom domains** with Route 53 + ACM certificates
-7. **Test end-to-end** in staging environment
+7. test everything.

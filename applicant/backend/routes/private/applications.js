@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
+const { sendAITaskToSQS } = require('../../utils/sqs');
 
 // Configure multer for memory storage (files stored in memory before uploading to Supabase)
 const storage = multer.memoryStorage();
@@ -643,7 +644,7 @@ async function processApplicationSubmission(supabase, applicationId, userId, for
       console.log(`[SUBMISSION] History record created for application ${applicationId}`);
     }
 
-    // Add application to processing queue for AI processing
+    // Add application to processing queue for AI processing (database record for tracking)
     const { error: queueError } = await supabase
       .from('processing_queue')
       .insert({
@@ -660,6 +661,14 @@ async function processApplicationSubmission(supabase, applicationId, userId, for
       // Non-fatal, continue - application was created successfully
     } else {
       console.log(`[SUBMISSION] Application ${applicationId} added to processing queue`);
+    }
+
+    // Send message to SQS queue to trigger Lambda processing
+    const sqsResult = await sendAITaskToSQS(applicationId);
+    if (sqsResult) {
+      console.log(`[SUBMISSION] Application ${applicationId} task sent to SQS queue`);
+    } else {
+      console.warn(`[SUBMISSION] Failed to send application ${applicationId} to SQS (non-fatal)`);
     }
 
     const duration = Date.now() - startTime;

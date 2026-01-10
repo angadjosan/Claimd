@@ -6,6 +6,8 @@ import logging
 from dotenv import load_dotenv
 from supabase import create_client, Client
 import anthropic
+import boto3
+from botocore.exceptions import ClientError
 
 # Load environment variables
 load_dotenv()
@@ -21,6 +23,7 @@ logger = logging.getLogger(__name__)
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL")
 
 claude_model = "claude-haiku-4-5-20251001"
     
@@ -37,6 +40,11 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Initialize Anthropic client
 anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+# Initialize SQS client (if queue URL is provided)
+sqs_client = None
+if SQS_QUEUE_URL:
+    sqs_client = boto3.client('sqs')
 
 def load_local_prompts():
     """Load prompts from local filesystem."""
@@ -399,38 +407,73 @@ def orchestrate_assignment(application_id):
     else:
         return {"result": "no_caseworkers_available"}
 
-def process_task(task):
+def send_orchestration_task_to_sqs(application_id):
+    """
+    Send an orchestration task to SQS queue.
+    Returns True if successful, False otherwise.
+    """
+    if not sqs_client or not SQS_QUEUE_URL:
+        logger.error("SQS client or queue URL not configured. Cannot send orchestration task.")
+        return False
+    
+    try:
+        message_body = {
+            "task_type": "orchestration",
+            "application_id": application_id,
+            "payload": {
+                "application_id": application_id
+            }
+        }
+        
+        response = sqs_client.send_message(
+            QueueUrl=SQS_QUEUE_URL,
+            MessageBody=json.dumps(message_body)
+        )
+        
+        logger.info(f"Orchestration task sent to SQS for application {application_id}. MessageId: {response.get('MessageId')}")
+        return True
+        
+    except ClientError as e:
+        logger.error(f"Failed to send orchestration task to SQS for application {application_id}: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error sending orchestration task to SQS for application {application_id}: {e}")
+        return False
+
+def process_task(task_data, task_id=None):
     """
     Process the individual task based on task type.
+    
+    Args:
+        task_data: Dictionary containing task_type, application_id, and payload
+        task_id: Optional task ID from processing_queue table
     """
-    task_id = task['id']
-    task_type = task['task_type']
-    payload = task['payload']
+    task_type = task_data.get('task_type')
+    payload = task_data.get('payload', {})
+    application_id = payload.get('application_id') or task_data.get('application_id')
     
-    logger.info(f"Processing task {task_id} of type {task_type}")
-    
-    application_id = payload.get('application_id')
+    logger.info(f"Processing task {task_id or 'unknown'} of type {task_type} for application {application_id}")
     
     if task_type == 'ai':
         # AI processing task
         if not application_id:
-            raise Exception(f"No application_id provided in AI task {task_id}")
+            raise Exception(f"No application_id provided in AI task")
         
         # Load application data to pass to update function
         application_data, _ = load_from_supabase(application_id)
         out = ai(application_id)
         update_db_with_ai_output(out, application_id, application_data)
         
-        logger.info(f"AI task {task_id} completed successfully")
+        logger.info(f"AI task {task_id or 'unknown'} completed successfully")
         return {"result": "success", "next_task": "orchestration"}
         
     elif task_type == 'orchestration':
         # Orchestration task - assign to caseworkers
         if not application_id:
-            raise Exception(f"No application_id provided in orchestration task {task_id}")
+            raise Exception(f"No application_id provided in orchestration task")
         
         result = orchestrate_assignment(application_id)
-        logger.info(f"Orchestration task {task_id} completed: {result}")
+        logger.info(f"Orchestration task {task_id or 'unknown'} completed: {result}")
         return result
         
     elif task_type == 'fail_test':
@@ -440,8 +483,203 @@ def process_task(task):
         logger.warning(f"Unknown task type: {task_type}")
         return {"result": "unknown_task_type"}
 
+def find_or_create_task_record(task_data):
+    """
+    Find existing task record in processing_queue or create one if not found.
+    Returns the task_id.
+    """
+    application_id = task_data.get('application_id') or task_data.get('payload', {}).get('application_id')
+    task_type = task_data.get('task_type')
+    task_id = task_data.get('task_id')
+    
+    # If task_id is provided, try to find it
+    if task_id:
+        try:
+            response = supabase.table('processing_queue').select('id').eq('id', task_id).execute()
+            if response.data:
+                return task_id
+        except Exception as e:
+            logger.warning(f"Could not find task with id {task_id}: {e}")
+    
+    # Otherwise, try to find by application_id + task_type + pending status
+    if application_id and task_type:
+        try:
+            response = supabase.table('processing_queue')\
+                .select('id')\
+                .eq('application_id', application_id)\
+                .eq('task_type', task_type)\
+                .eq('status', 'pending')\
+                .order('created_at', desc=True)\
+                .limit(1)\
+                .execute()
+            
+            if response.data and len(response.data) > 0:
+                return response.data[0]['id']
+        except Exception as e:
+            logger.warning(f"Could not find existing task record: {e}")
+    
+    # If not found, create a new record
+    try:
+        insert_data = {
+            'application_id': application_id,
+            'task_type': task_type,
+            'payload': task_data.get('payload', {}),
+            'status': 'pending'
+        }
+        response = supabase.table('processing_queue').insert(insert_data).execute()
+        if response.data and len(response.data) > 0:
+            return response.data[0]['id']
+    except Exception as e:
+        logger.error(f"Failed to create task record: {e}")
+        raise
+    
+    return None
+
+def update_task_status(task_id, status, error_message=None, result=None):
+    """
+    Update the status of a task in processing_queue table.
+    """
+    try:
+        update_data = {
+            'status': status,
+            'updated_at': 'now()'
+        }
+        
+        if status == 'processing':
+            update_data['locked_at'] = 'now()'
+            # Increment attempts
+            # Get current attempts first
+            current_task = supabase.table('processing_queue').select('attempts').eq('id', task_id).execute()
+            current_attempts = current_task.data[0].get('attempts', 0) if current_task.data else 0
+            update_data['attempts'] = current_attempts + 1
+        
+        if error_message:
+            update_data['last_error'] = error_message
+        
+        if result:
+            # Merge result into payload
+            current_task = supabase.table('processing_queue').select('payload').eq('id', task_id).execute()
+            current_payload = current_task.data[0].get('payload', {}) if current_task.data else {}
+            if isinstance(current_payload, str):
+                current_payload = json.loads(current_payload) if current_payload else {}
+            current_payload['result'] = result
+            update_data['payload'] = current_payload
+        
+        supabase.table('processing_queue').update(update_data).eq('id', task_id).execute()
+        logger.info(f"Updated task {task_id} status to {status}")
+        
+    except Exception as e:
+        logger.error(f"Failed to update task {task_id} status: {e}")
+        # Don't raise - this is non-critical for processing
+
+def process_sqs_message(record):
+    """
+    Process a single SQS message record.
+    Returns (success: bool, message_id: str, error: str or None)
+    """
+    message_id = record.get('messageId')
+    body = record.get('body', '{}')
+    
+    try:
+        # Parse message body
+        task_data = json.loads(body)
+        logger.info(f"Processing SQS message {message_id}: {task_data}")
+        
+        # Find or create task record in processing_queue
+        task_id = find_or_create_task_record(task_data)
+        if not task_id:
+            raise Exception("Could not find or create task record")
+        
+        # Update status to processing
+        update_task_status(task_id, 'processing')
+        
+        # Process the task
+        result = process_task(task_data, task_id)
+        
+        # Update status to completed
+        update_task_status(task_id, 'completed', result=result)
+        
+        # If AI task completed successfully, send orchestration task to SQS
+        if task_data.get('task_type') == 'ai' and result.get('result') == 'success':
+            application_id = task_data.get('application_id') or task_data.get('payload', {}).get('application_id')
+            if application_id:
+                logger.info(f"AI task completed successfully, sending orchestration task to SQS for application {application_id}")
+                # Also create record in processing_queue for orchestration task
+                try:
+                    supabase.table('processing_queue').insert({
+                        'application_id': application_id,
+                        'task_type': 'orchestration',
+                        'payload': {'application_id': application_id},
+                        'status': 'pending'
+                    }).execute()
+                except Exception as e:
+                    logger.warning(f"Failed to create orchestration task record in DB: {e}")
+                
+                # Send to SQS
+                send_orchestration_task_to_sqs(application_id)
+        
+        return (True, message_id, None)
+        
+    except json.JSONDecodeError as e:
+        error_msg = f"Invalid JSON in message body: {e}"
+        logger.error(f"Error processing message {message_id}: {error_msg}")
+        return (False, message_id, error_msg)
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error processing message {message_id}: {error_msg}")
+        
+        # Try to update task status to failed if we have a task_id
+        try:
+            task_data = json.loads(body)
+            task_id = find_or_create_task_record(task_data)
+            if task_id:
+                update_task_status(task_id, 'failed', error_message=error_msg)
+        except:
+            pass  # Ignore errors in error handling
+        
+        return (False, message_id, error_msg)
+
+def lambda_handler(event, context):
+    """
+    AWS Lambda handler for processing SQS events.
+    
+    Args:
+        event: SQS event containing Records array
+        context: Lambda context object
+    
+    Returns:
+        Response with batchItemFailures for partial batch failure handling
+    """
+    logger.info(f"Lambda invoked with {len(event.get('Records', []))} SQS message(s)")
+    
+    batch_item_failures = []
+    
+    for record in event.get('Records', []):
+        message_id = record.get('messageId')
+        success, msg_id, error = process_sqs_message(record)
+        
+        if not success:
+            logger.error(f"Failed to process message {msg_id}: {error}")
+            batch_item_failures.append({
+                "itemIdentifier": message_id
+            })
+    
+    # Return response for partial batch failure handling
+    response = {}
+    if batch_item_failures:
+        response["batchItemFailures"] = batch_item_failures
+        logger.warning(f"Returning {len(batch_item_failures)} failed message(s) for retry")
+    else:
+        logger.info("All messages processed successfully")
+    
+    return response
+
 def worker_loop():
-    """Main worker loop."""
+    """
+    Legacy worker loop for local testing.
+    This function is kept for backward compatibility but should not be used in production.
+    """
+    logger.warning("Using legacy worker_loop(). This should only be used for local testing.")
     logger.info("Worker started. Waiting for tasks...")
     
     while True:
@@ -462,7 +700,7 @@ def worker_loop():
             
             # 2. Process the task
             try:
-                result = process_task(task)
+                result = process_task(task, task_id)
                 
                 # 3. Mark as completed
                 # Note: We merge the result into the existing payload
@@ -506,4 +744,22 @@ def worker_loop():
             time.sleep(5) # Sleep on error to avoid tight loops
 
 if __name__ == "__main__":
+    # For local testing, you can simulate SQS events
+    # Example:
+    # test_event = {
+    #     "Records": [
+    #         {
+    #             "messageId": "test-msg-1",
+    #             "body": json.dumps({
+    #                 "task_type": "ai",
+    #                 "application_id": "your-test-uuid",
+    #                 "payload": {"application_id": "your-test-uuid"}
+    #             })
+    #         }
+    #     ]
+    # }
+    # result = lambda_handler(test_event, None)
+    # print(result)
+    
+    # Or use legacy worker loop for local testing
     worker_loop()
