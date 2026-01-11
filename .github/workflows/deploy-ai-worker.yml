@@ -1,0 +1,69 @@
+name: Deploy AI Worker
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ai-app-processing-service/**'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::211125407739:role/claimd-github-deployer
+          aws-region: us-east-2
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: ai-app-processing-service/requirements.txt
+
+      - name: Install dependencies
+        working-directory: ai-app-processing-service
+        run: |
+          pip install -r requirements.txt -t .
+
+      - name: Create deployment package
+        working-directory: ai-app-processing-service
+        run: |
+          zip -r function.zip . \
+            -x "*.git*" \
+            -x "venv/*" \
+            -x "sample_application_accepted/*" \
+            -x "__pycache__/*" \
+            -x "*.pyc" \
+            -x ".venv/*"
+
+      - name: Deploy to Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name claimd-ai-worker \
+            --zip-file fileb://ai-app-processing-service/function.zip \
+            --region us-east-2
+
+      - name: Update Lambda environment variables
+        run: |
+          # Get SSM parameters
+          SUPABASE_URL=$(aws ssm get-parameter --name "/calhacksy1/supabase/url" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
+          SUPABASE_KEY=$(aws ssm get-parameter --name "/calhacksy1/supabase/service-key" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
+          ANTHROPIC_KEY=$(aws ssm get-parameter --name "/calhacksy1/anthropic/api-key" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
+          SQS_QUEUE_URL=$(aws ssm get-parameter --name "/calhacksy1/sqs/queue-url" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
+          
+          aws lambda update-function-configuration \
+            --function-name claimd-ai-worker \
+            --environment "Variables={SUPABASE_URL=$SUPABASE_URL,SUPABASE_SERVICE_KEY=$SUPABASE_KEY,ANTHROPIC_API_KEY=$ANTHROPIC_KEY,SQS_QUEUE_URL=$SQS_QUEUE_URL}" \
+            --region us-east-2

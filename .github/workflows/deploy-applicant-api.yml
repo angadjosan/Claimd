@@ -1,0 +1,61 @@
+name: Deploy Applicant API
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'applicant/backend/**'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::211125407739:role/claimd-github-deployer
+          aws-region: us-east-2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: applicant/backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: applicant/backend
+        run: npm ci --production
+
+      - name: Create deployment package
+        working-directory: applicant/backend
+        run: |
+          zip -r function.zip . -x "*.git*" "node_modules/.cache/*"
+
+      - name: Deploy to Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name claimd-applicant-api \
+            --zip-file fileb://applicant/backend/function.zip \
+            --region us-east-2
+
+      - name: Update Lambda environment variables
+        run: |
+          # Get SSM parameters
+          SUPABASE_URL=$(aws ssm get-parameter --name "/calhacksy1/supabase/url" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
+          SUPABASE_KEY=$(aws ssm get-parameter --name "/calhacksy1/supabase/service-key" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
+          SQS_QUEUE_URL=$(aws ssm get-parameter --name "/calhacksy1/sqs/queue-url" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
+          
+          aws lambda update-function-configuration \
+            --function-name claimd-applicant-api \
+            --environment "Variables={NODE_ENV=production,AWS_REGION=us-east-2,SUPABASE_URL=$SUPABASE_URL,SUPABASE_SERVICE_KEY=$SUPABASE_KEY,SQS_QUEUE_URL=$SQS_QUEUE_URL}" \
+            --region us-east-2
