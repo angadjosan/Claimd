@@ -26,7 +26,7 @@ const FormContext = createContext<FormContextType | undefined>(undefined);
 
 export function FormProvider({ children }: { children: React.ReactNode }) {
   const [formData, setFormData] = useState<FormData>(initialFormData);
-  const [isLoaded, setIsLoaded] = useState(true);
+  const [isLoaded] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   

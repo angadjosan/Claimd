@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, LogOut, KeyRound, ChevronDown, Mail } from 'lucide-react';
+import { LogOut, KeyRound, ChevronDown, Mail } from 'lucide-react';
 import { authService } from '../services/auth';
 import { supabase } from '../lib/supabase';
 import './MinimalNavbar.css';

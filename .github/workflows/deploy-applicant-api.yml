@@ -48,11 +48,14 @@ jobs:
             --function-name claimd-applicant-api \
             --zip-file fileb://applicant/backend/function.zip \
             --region us-east-2
+          
+          echo "Waiting for Lambda function code update to complete..."
+          aws lambda wait function-updated \
+            --function-name claimd-applicant-api \
+            --region us-east-2
 
       - name: Update Lambda environment variables
         run: |
-          NODE_ENV=production
-          AWS_REGION=us-east-2
           SUPABASE_URL=$(aws ssm get-parameter --name "/calhacksy1/supabase/url" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
           SUPABASE_SERVICE_KEY=$(aws ssm get-parameter --name "/calhacksy1/supabase/service-key" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
           SQS_QUEUE_URL=$(aws ssm get-parameter --name "/calhacksy1/sqs/queue-url" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
@@ -60,5 +63,10 @@ jobs:
           
           aws lambda update-function-configuration \
             --function-name claimd-applicant-api \
-            --environment "Variables={NODE_ENV=production,AWS_REGION=us-east-2,SUPABASE_URL=$SUPABASE_URL,SUPABASE_SERVICE_KEY=$SUPABASE_SERVICE_KEY,SQS_QUEUE_URL=$SQS_QUEUE_URL,CORS_ORIGIN=$CORS_ORIGIN}" \
+            --environment "Variables={NODE_ENV=production,SUPABASE_URL=$SUPABASE_URL,SUPABASE_SERVICE_KEY=$SUPABASE_SERVICE_KEY,SQS_QUEUE_URL=$SQS_QUEUE_URL,CORS_ORIGIN=$CORS_ORIGIN}" \
+            --region us-east-2
+          
+          echo "Waiting for Lambda function configuration update to complete..."
+          aws lambda wait function-updated \
+            --function-name claimd-applicant-api \
             --region us-east-2

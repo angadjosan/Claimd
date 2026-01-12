@@ -77,11 +77,14 @@ jobs:
             --function-name claimd-ai-worker \
             --zip-file fileb://ai-app-processing-service/function.zip \
             --region us-east-2
+          
+          echo "Waiting for Lambda function code update to complete..."
+          aws lambda wait function-updated \
+            --function-name claimd-ai-worker \
+            --region us-east-2
 
       - name: Update Lambda environment variables
         run: |
-          NODE_ENV=production
-          AWS_REGION=us-east-2
           SUPABASE_URL=$(aws ssm get-parameter --name "/calhacksy1/supabase/url" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
           SUPABASE_SERVICE_KEY=$(aws ssm get-parameter --name "/calhacksy1/supabase/service-key" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
           ANTHROPIC_API_KEY=$(aws ssm get-parameter --name "/calhacksy1/anthropic/api-key" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
@@ -89,5 +92,10 @@ jobs:
           
           aws lambda update-function-configuration \
             --function-name claimd-ai-worker \
-            --environment "Variables={SUPABASE_URL=$SUPABASE_URL,SUPABASE_SERVICE_KEY=$SUPABASE_KEY,ANTHROPIC_API_KEY=$ANTHROPIC_KEY,SQS_QUEUE_URL=$SQS_QUEUE_URL}" \
+            --environment "Variables={SUPABASE_URL=$SUPABASE_URL,SUPABASE_SERVICE_KEY=$SUPABASE_SERVICE_KEY,ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY,SQS_QUEUE_URL=$SQS_QUEUE_URL}" \
+            --region us-east-2
+          
+          echo "Waiting for Lambda function configuration update to complete..."
+          aws lambda wait function-updated \
+            --function-name claimd-ai-worker \
             --region us-east-2

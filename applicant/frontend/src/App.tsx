@@ -1,7 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
-import ProtectedRoute from './components/ProtectedRoute';
 import RootRedirect from './components/RootRedirect';
 import InitAndRedirect from './components/InitAndRedirect';
 import { ToastProvider } from './components/Toast';
@@ -9,8 +8,6 @@ import { FormProvider } from './context/FormContext';
 
 // Lazy load all pages for better performance
 const AuthPage = lazy(() => import('./pages/Auth/Auth'));
-const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
-const UserFormPage = lazy(() => import('./pages/UserFormPage/UserFormPage'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 function App() {

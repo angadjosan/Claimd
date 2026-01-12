@@ -8,7 +8,6 @@ import { ToastProvider } from './components/Toast';
 
 // Lazy load all pages for better performance
 const AuthPage = lazy(() => import('./pages/Auth/Auth'));
-const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
 const ApplicationDetail = lazy(() => import('./pages/Dashboard/ApplicationDetail'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
