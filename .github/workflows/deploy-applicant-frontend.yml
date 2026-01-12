@@ -1,0 +1,59 @@
+name: Deploy Applicant Frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'applicant/frontend/**'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::211125407739:role/claimd-github-deployer
+          aws-region: us-east-1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: applicant/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: applicant/frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: applicant/frontend
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_API_URL: ${{ secrets.VITE_APPLICANT_API_URL }}
+          VITE_BASE_URL: ${{ secrets.VITE_BASE_URL }}
+        run: npm run build
+
+      - name: Deploy to S3
+        run: |
+          aws s3 sync applicant/frontend/dist/ s3://claimd-applicant-frontend/ \
+            --delete \
+            --region us-east-1
+
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id E19N9CLEWYM9KP \
+            --paths "/*" \
+            --region us-east-1

@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
+const { sendAITaskToSQS } = require('../../utils/sqs');
 
 // Configure multer for memory storage (files stored in memory before uploading to Supabase)
 const storage = multer.memoryStorage();
@@ -363,6 +364,119 @@ const uploadFields = upload.fields([
 ]);
 
 /**
+ * Middleware to handle multer errors (file size limits, etc.)
+ */
+function handleMulterError(err, req, res, next) {
+  if (err) {
+    // Multer errors
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        error: 'File Too Large',
+        message: 'File size exceeds the 10MB limit. Please upload a smaller file.',
+      });
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        error: 'Too Many Files',
+        message: 'Number of files exceeds the allowed limit.',
+      });
+    }
+    if (err.code === 'LIMIT_FIELD_KEY') {
+      return res.status(400).json({
+        error: 'Invalid Field',
+        message: 'Invalid field name in upload request.',
+      });
+    }
+    if (err.code === 'LIMIT_PART_COUNT') {
+      return res.status(400).json({
+        error: 'Too Many Parts',
+        message: 'Request contains too many parts.',
+      });
+    }
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({
+        error: 'Unexpected File',
+        message: 'Unexpected file field in upload request.',
+      });
+    }
+    // Generic multer error
+    if (err.name === 'MulterError') {
+      return res.status(400).json({
+        error: 'Upload Error',
+        message: err.message || 'File upload failed.',
+      });
+    }
+    // File filter errors (invalid file type)
+    if (err.message && err.message.includes('Invalid file type')) {
+      return res.status(400).json({
+        error: 'Invalid File Type',
+        message: err.message,
+      });
+    }
+  }
+  next(err);
+}
+
+/**
+ * Middleware to validate total request size (sum of all files)
+ * This checks the total size of all uploaded files
+ */
+function validateTotalRequestSize(req, res, next) {
+  const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB total (reasonable limit for multiple files)
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file (already enforced by multer, but double-check)
+  
+  if (!req.files || Object.keys(req.files).length === 0) {
+    return next();
+  }
+
+  let totalSize = 0;
+  const oversizedFiles = [];
+
+  // Calculate total size and check individual file sizes
+  for (const fieldName in req.files) {
+    const files = Array.isArray(req.files[fieldName]) 
+      ? req.files[fieldName] 
+      : [req.files[fieldName]];
+    
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        oversizedFiles.push({
+          name: file.originalname,
+          size: file.size,
+          maxSize: MAX_FILE_SIZE,
+        });
+      }
+      totalSize += file.size;
+    }
+  }
+
+  // Check for oversized individual files (shouldn't happen due to multer, but double-check)
+  if (oversizedFiles.length > 0) {
+    return res.status(400).json({
+      error: 'File Too Large',
+      message: `The following file(s) exceed the 10MB limit: ${oversizedFiles.map(f => f.name).join(', ')}`,
+      oversizedFiles: oversizedFiles.map(f => ({
+        name: f.name,
+        size: `${(f.size / 1024 / 1024).toFixed(2)}MB`,
+        maxSize: '10MB',
+      })),
+    });
+  }
+
+  // Check total request size
+  if (totalSize > MAX_TOTAL_SIZE) {
+    return res.status(400).json({
+      error: 'Request Too Large',
+      message: `Total upload size (${(totalSize / 1024 / 1024).toFixed(2)}MB) exceeds the ${(MAX_TOTAL_SIZE / 1024 / 1024)}MB limit. Please reduce the number or size of files.`,
+      totalSize: `${(totalSize / 1024 / 1024).toFixed(2)}MB`,
+      maxTotalSize: `${(MAX_TOTAL_SIZE / 1024 / 1024)}MB`,
+    });
+  }
+
+  next();
+}
+
+/**
  * Process application submission asynchronously
  * This function handles file uploads, data transformation, and final submission
  */
@@ -530,7 +644,7 @@ async function processApplicationSubmission(supabase, applicationId, userId, for
       console.log(`[SUBMISSION] History record created for application ${applicationId}`);
     }
 
-    // Add application to processing queue for AI processing
+    // Add application to processing queue for AI processing (database record for tracking)
     const { error: queueError } = await supabase
       .from('processing_queue')
       .insert({
@@ -547,6 +661,14 @@ async function processApplicationSubmission(supabase, applicationId, userId, for
       // Non-fatal, continue - application was created successfully
     } else {
       console.log(`[SUBMISSION] Application ${applicationId} added to processing queue`);
+    }
+
+    // Send message to SQS queue to trigger Lambda processing
+    const sqsResult = await sendAITaskToSQS(applicationId);
+    if (sqsResult) {
+      console.log(`[SUBMISSION] Application ${applicationId} task sent to SQS queue`);
+    } else {
+      console.warn(`[SUBMISSION] Failed to send application ${applicationId} to SQS (non-fatal)`);
     }
 
     const duration = Date.now() - startTime;
@@ -749,11 +871,22 @@ const applicationSubmissionHandler = async (req, res) => {
   }
 };
 
-// Apply rate limiting middleware to the route
-router.post('/', uploadFields, (req, res, next) => {
-  const applicationSubmissionRateLimiter = req.app.get('applicationSubmissionRateLimiter');
-  applicationSubmissionRateLimiter(req, res, next);
-}, applicationSubmissionHandler);
+// Apply middleware in order: rate limiting -> multer upload -> error handling -> size validation -> handler
+router.post('/', 
+  // Rate limiting
+  (req, res, next) => {
+    const applicationSubmissionRateLimiter = req.app.get('applicationSubmissionRateLimiter');
+    applicationSubmissionRateLimiter(req, res, next);
+  },
+  // File upload (multer)
+  uploadFields,
+  // Multer error handling
+  handleMulterError,
+  // Total request size validation
+  validateTotalRequestSize,
+  // Application submission handler
+  applicationSubmissionHandler
+);
 
 /**
  * GET /api/private/applications

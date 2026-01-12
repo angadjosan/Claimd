@@ -11,6 +11,8 @@ interface FileUploadFieldProps {
   required?: boolean;
 }
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 export const FileUploadField: React.FC<FileUploadFieldProps> = ({ 
   label, 
   onChange, 
@@ -22,6 +24,7 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [fileSizeError, setFileSizeError] = useState<string | null>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -32,17 +35,38 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
     setIsDragging(false);
   };
 
+  const validateFileSize = (file: File): boolean => {
+    if (file.size > MAX_FILE_SIZE) {
+      const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+      setFileSizeError(`File size (${fileSizeMB}MB) exceeds the 10MB limit. Please choose a smaller file.`);
+      return false;
+    }
+    setFileSizeError(null);
+    return true;
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      onChange(e.dataTransfer.files[0]);
+      const file = e.dataTransfer.files[0];
+      if (validateFileSize(file)) {
+        onChange(file);
+      }
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      onChange(e.target.files[0]);
+      const file = e.target.files[0];
+      if (validateFileSize(file)) {
+        onChange(file);
+      } else {
+        // Clear the input so user can try again
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
     }
   };
 
@@ -104,7 +128,9 @@ export const FileUploadField: React.FC<FileUploadFieldProps> = ({
         </div>
       )}
       
-      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      {(error || fileSizeError) && (
+        <p className="mt-1 text-sm text-red-600">{error || fileSizeError}</p>
+      )}
     </div>
   );
 };
