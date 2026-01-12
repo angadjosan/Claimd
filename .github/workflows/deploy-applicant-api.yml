@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'applicant/backend/**'
+      - '.github/workflows/deploy-applicant-api.yml'
   workflow_dispatch:
 
 permissions:

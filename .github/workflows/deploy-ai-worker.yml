@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'ai-app-processing-service/**'
+      - '.github/workflows/deploy-ai-worker.yml'
   workflow_dispatch:
 
 permissions:

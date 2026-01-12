@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'applicant/frontend/**'
+      - '.github/workflows/deploy-applicant-frontend.yml'
   workflow_dispatch:
 
 permissions:

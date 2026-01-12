@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'caseworker/backend/**'
+      - '.github/workflows/deploy-caseworker-api.yml'
   workflow_dispatch:
 
 permissions:
