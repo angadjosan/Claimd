@@ -79,38 +79,18 @@ Three Vite/React apps served via CloudFront:
 ## Next Steps
 ---
 
-4. **Create GitHub Actions workflows** with OIDC auth
-
-```
-.github/
-└── workflows/
-    ├── deploy-landing.yml           # Landing page → S3
-    ├── deploy-applicant-frontend.yml # Applicant frontend → S3
-    ├── deploy-caseworker-frontend.yml # Caseworker frontend → S3
-    ├── deploy-applicant-api.yml      # Applicant backend → Lambda
-    ├── deploy-caseworker-api.yml     # Caseworker backend → Lambda
-    └── deploy-ai-worker.yml          # AI worker → Lambda
-```
-
-### 4. CORS Configuration
-- [ ] Allow origins: `mysite.com`, `applicant.mysite.com`, `caseworker.mysite.com`
-- [ ] Configure in both Express apps and API Gateway
-
-Additional notes:
-Frontend environment variables (build-time, not SSM):
+Frontend environment variable: set these before building
 VITE_SUPABASE_URL — For applicant & caseworker frontends
 VITE_SUPABASE_ANON_KEY — For applicant & caseworker frontends
 VITE_API_URL — Optional (has defaults)
 VITE_APPLICANT_URL — For landing page (optional)
 VITE_CASEWORKER_URL — For landing page (optional)
 VITE_BASE_URL — For navbar (optional)
+
 Lambda environment variables (not secrets, can be set directly):
-AWS_REGION — Optional (defaults to us-east-1 in applicant backend)
-NODE_ENV — Set to production for Lambda
-Important: Your code currently reads from process.env and os.getenv. You'll need to either:
-Update the code to read from SSM Parameter Store at runtime, or
-Set Lambda environment variables that reference SSM parameters (using Lambda's SSM integration)
-I've updated your AWS_SETUP_GUIDE.md to include the SQS Queue URL parameter. You now need 5 SSM parameters total.
+
+CORS_ORIGIN set them up in lambda via API Gateway. Go to CORS Settings. I have the distributions already.
+Also set them up via process.env
 
 ## AWS Storage for AI Service Files
 
@@ -121,7 +101,19 @@ Since the schemas and markdown files are specific to the AI service, they can be
 - **SSM Parameter Store**: For smaller configuration files or critical prompts, consider storing them as secure parameters in AWS Systems Manager Parameter Store.
   - Example: `/ai-service/schemas/application_schema` or `/ai-service/prompts/extractor_prompt`
 
+add to CI/CD also
 
+3. AI service files storage
+The AI worker reads from local filesystem (prompts/ and schemas/). In Lambda, store them in S3.
+Steps:
+Create an S3 bucket (e.g., ai-service-configs)
+Upload files:
+ai-app-processing-service/prompts/extractor_prompt.md → s3://ai-service-configs/prompts/extractor_prompt.md
+ai-app-processing-service/prompts/reasoning_prompt.md → s3://ai-service-configs/prompts/reasoning_prompt.md
+ai-app-processing-service/prompts/rules.md → s3://ai-service-configs/prompts/rules.md
+ai-app-processing-service/schemas/*.json → s3://ai-service-configs/schemas/
+Update worker.py to load from S3 instead of local filesystem (or create a Lambda layer with the files)
+Grant the AI Worker Lambda IAM role permission to read from this bucket
 
 6. **Set up custom domains** with Route 53 + ACM certificates
 7. test everything.
