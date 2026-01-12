@@ -1,7 +1,17 @@
 import './MinimalNavbar.css';
 
-const APPLICANT_URL = import.meta.env.VITE_APPLICANT_URL || 'http://localhost:5173';
-const CASEWORKER_URL = import.meta.env.VITE_CASEWORKER_URL || 'http://localhost:5191';
+// Ensure URLs always have a protocol to prevent relative URL issues
+const getUrlWithProtocol = (url: string, defaultUrl: string) => {
+  const envUrl = url || defaultUrl;
+  // If URL doesn't start with http:// or https://, add https://
+  if (!envUrl.startsWith('http://') && !envUrl.startsWith('https://')) {
+    return `https://${envUrl}`;
+  }
+  return envUrl;
+};
+
+const APPLICANT_URL = getUrlWithProtocol(import.meta.env.VITE_APPLICANT_URL, 'http://localhost:5173');
+const CASEWORKER_URL = getUrlWithProtocol(import.meta.env.VITE_CASEWORKER_URL, 'http://localhost:5191');
 
 export default function MinimalNavbar() {
   return (

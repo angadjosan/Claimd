@@ -5,7 +5,17 @@ import { authService } from '../services/auth';
 import { supabase } from '../lib/supabase';
 import './MinimalNavbar.css';
 
-const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:5190';
+// Ensure BASE_URL always has a protocol to prevent relative URL issues
+const getBaseUrl = () => {
+  const url = import.meta.env.VITE_BASE_URL || 'http://localhost:5190';
+  // If URL doesn't start with http:// or https://, add https://
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    return `https://${url}`;
+  }
+  return url;
+};
+
+const BASE_URL = getBaseUrl();
 
 export default function MinimalNavbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);

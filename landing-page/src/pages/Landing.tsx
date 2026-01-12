@@ -2,7 +2,17 @@ import MinimalNavbar from '../components/MinimalNavbar';
 import MinimalHero from '../components/MinimalHero';
 import MinimalProblem from '../components/MinimalProblem';
 
-const APPLICANT_URL = import.meta.env.VITE_APPLICANT_URL || 'http://localhost:5173';
+// Ensure URL always has a protocol to prevent relative URL issues
+const getUrlWithProtocol = (url: string, defaultUrl: string) => {
+  const envUrl = url || defaultUrl;
+  // If URL doesn't start with http:// or https://, add https://
+  if (!envUrl.startsWith('http://') && !envUrl.startsWith('https://')) {
+    return `https://${envUrl}`;
+  }
+  return envUrl;
+};
+
+const APPLICANT_URL = getUrlWithProtocol(import.meta.env.VITE_APPLICANT_URL, 'http://localhost:5173');
 
 export default function Landing() {
     return (
