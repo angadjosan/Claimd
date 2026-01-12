@@ -41,7 +41,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_API_URL: ${{ secrets.VITE_CASEWORKER_API_URL }}
           VITE_BASE_URL: ${{ secrets.VITE_BASE_URL }}
         run: npm run build
 
