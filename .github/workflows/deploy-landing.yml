@@ -38,6 +38,10 @@ jobs:
 
       - name: Build
         working-directory: landing-page
+        env:
+          VITE_APPLICANT_URL: ${{ secrets.VITE_APPLICANT_URL }}
+          VITE_CASEWORKER_URL: ${{ secrets.VITE_CASEWORKER_URL }}
+          VITE_BASE_URL: ${{ secrets.VITE_BASE_URL }}
         run: npm run build
 
       - name: Deploy to S3

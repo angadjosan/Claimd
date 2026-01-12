@@ -46,6 +46,73 @@ sqs_client = None
 if SQS_QUEUE_URL:
     sqs_client = boto3.client('sqs')
 
+# S3 configuration for production
+S3_BUCKET_NAME = os.getenv("S3_CONFIG_BUCKET", "ai-service-configs")
+S3_REGION = os.getenv("AWS_REGION", "us-east-2")
+
+# Check if running in Lambda (production)
+def is_lambda_environment():
+    """Check if running in AWS Lambda environment."""
+    return os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
+
+def load_prompts_from_s3():
+    """Load prompts from S3 bucket."""
+    s3_client = boto3.client('s3', region_name=S3_REGION)
+    
+    try:
+        extractor_prompt_obj = s3_client.get_object(
+            Bucket=S3_BUCKET_NAME,
+            Key='prompts/extractor_prompt.md'
+        )
+        extractor_prompt = extractor_prompt_obj['Body'].read().decode('utf-8')
+        
+        reasoning_prompt_obj = s3_client.get_object(
+            Bucket=S3_BUCKET_NAME,
+            Key='prompts/reasoning_prompt.md'
+        )
+        reasoning_prompt = reasoning_prompt_obj['Body'].read().decode('utf-8')
+        
+        rules_obj = s3_client.get_object(
+            Bucket=S3_BUCKET_NAME,
+            Key='prompts/rules.md'
+        )
+        rules = rules_obj['Body'].read().decode('utf-8')
+        
+        logger.info("Successfully loaded prompts from S3")
+        return extractor_prompt, reasoning_prompt, rules
+    except Exception as e:
+        logger.error(f"Failed to load prompts from S3: {e}")
+        raise
+
+def load_schemas_from_s3():
+    """Load schemas from S3 bucket."""
+    s3_client = boto3.client('s3', region_name=S3_REGION)
+    
+    try:
+        application_schema_obj = s3_client.get_object(
+            Bucket=S3_BUCKET_NAME,
+            Key='schemas/application_schema.json'
+        )
+        application_schema = json.loads(application_schema_obj['Body'].read().decode('utf-8'))
+        
+        extraction_schema_obj = s3_client.get_object(
+            Bucket=S3_BUCKET_NAME,
+            Key='schemas/extraction_schema.json'
+        )
+        extraction_schema = json.loads(extraction_schema_obj['Body'].read().decode('utf-8'))
+        
+        reasoning_output_schema_obj = s3_client.get_object(
+            Bucket=S3_BUCKET_NAME,
+            Key='schemas/reasoning_output_schema.json'
+        )
+        reasoning_output_schema = json.loads(reasoning_output_schema_obj['Body'].read().decode('utf-8'))
+        
+        logger.info("Successfully loaded schemas from S3")
+        return application_schema, extraction_schema, reasoning_output_schema
+    except Exception as e:
+        logger.error(f"Failed to load schemas from S3: {e}")
+        raise
+
 def load_local_prompts():
     """Load prompts from local filesystem."""
     base_path = os.path.dirname(os.path.abspath(__file__))
@@ -73,6 +140,20 @@ def load_local_schemas():
         reasoning_output_schema = json.load(f)
         
     return application_schema, extraction_schema, reasoning_output_schema
+
+def load_prompts():
+    """Load prompts from S3 (production) or local filesystem (development)."""
+    if is_lambda_environment():
+        return load_prompts_from_s3()
+    else:
+        return load_local_prompts()
+
+def load_schemas():
+    """Load schemas from S3 (production) or local filesystem (development)."""
+    if is_lambda_environment():
+        return load_schemas_from_s3()
+    else:
+        return load_local_schemas()
 
 def load_from_supabase(application_id):
     """
@@ -248,8 +329,8 @@ def reasoning_call(extraction_schema, extractor_output, application_schema, appl
             time.sleep(1)  # Brief delay before retry
 
 def ai(application_id):
-    extractor_prompt, reasoning_prompt, rules = load_local_prompts()
-    application_schema, extraction_schema, reasoning_output_schema = load_local_schemas()
+    extractor_prompt, reasoning_prompt, rules = load_prompts()
+    application_schema, extraction_schema, reasoning_output_schema = load_schemas()
     application_data, application_docs = load_from_supabase(application_id)
 
     # Check if there are any documents to process

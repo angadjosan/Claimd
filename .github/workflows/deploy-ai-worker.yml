@@ -25,6 +25,28 @@ jobs:
           role-to-assume: arn:aws:iam::211125407739:role/claimd-github-deployer
           aws-region: us-east-2
 
+      - name: Upload configuration files to S3
+        run: |
+          BUCKET_NAME="ai-service-configs"
+          REGION="us-east-2"
+          
+          if ! aws s3 ls "s3://$BUCKET_NAME" 2>&1 | grep -q 'NoSuchBucket'; then
+            echo "Bucket $BUCKET_NAME already exists"
+          else
+            echo "Creating bucket $BUCKET_NAME..."
+            aws s3 mb "s3://$BUCKET_NAME" --region "$REGION"
+          fi
+          
+          echo "Uploading prompts..."
+          aws s3 cp ai-app-processing-service/prompts/extractor_prompt.md "s3://$BUCKET_NAME/prompts/extractor_prompt.md" --region "$REGION"
+          aws s3 cp ai-app-processing-service/prompts/reasoning_prompt.md "s3://$BUCKET_NAME/prompts/reasoning_prompt.md" --region "$REGION"
+          aws s3 cp ai-app-processing-service/prompts/rules.md "s3://$BUCKET_NAME/prompts/rules.md" --region "$REGION"
+          
+          echo "Uploading schemas..."
+          aws s3 cp ai-app-processing-service/schemas/application_schema.json "s3://$BUCKET_NAME/schemas/application_schema.json" --region "$REGION"
+          aws s3 cp ai-app-processing-service/schemas/extraction_schema.json "s3://$BUCKET_NAME/schemas/extraction_schema.json" --region "$REGION"
+          aws s3 cp ai-app-processing-service/schemas/reasoning_output_schema.json "s3://$BUCKET_NAME/schemas/reasoning_output_schema.json" --region "$REGION"
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
