@@ -5,5 +5,14 @@
 const serverlessExpress = require('@vendia/serverless-express');
 const app = require('./App');
 
-exports.handler = serverlessExpress({ app });
+// Configure for API Gateway HTTP API (v2) or REST API (v1)
+exports.handler = serverlessExpress({ 
+  app,
+  binarySettings: {
+    isBinary: (contentType) => {
+      return /^image\//.test(contentType) || 
+             /^application\/(pdf|zip|octet-stream)/.test(contentType);
+    }
+  }
+});
 

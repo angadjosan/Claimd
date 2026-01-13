@@ -17,18 +17,18 @@ const PORT = process.env.PORT || 3002;
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('Missing Supabase configuration. Please check your .env file.');
-  process.exit(1);
+let supabase = null;
+if (supabaseUrl && supabaseServiceKey) {
+  // Service client (bypasses RLS)
+  supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+} else {
+  console.warn('Missing Supabase configuration. Some features may not work.');
 }
-
-// Service client (bypasses RLS)
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
 
 // Make Supabase client available to routes
 app.set('supabase', supabase);
@@ -100,7 +100,8 @@ app.set('authRateLimiter', authRateLimiter);
 // Routes
 // ============================================
 
-// Health check endpoint
+// Health check endpoint - support both /health and /api/health
+// API Gateway may strip /api base path, so we support both
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'healthy', 
@@ -109,11 +110,23 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    version: process.env.npm_package_version || '1.0.0'
+  });
+});
+
 // Public routes (with public rate limiter)
+// Support both /api/public and /public (for when API Gateway strips /api)
 app.use('/api/public', publicRateLimiter, publicRoutes);
+app.use('/public', publicRateLimiter, publicRoutes);
 
 // Private routes (with private rate limiter)
+// Support both /api/private and /private (for when API Gateway strips /api)
 app.use('/api/private', privateRateLimiter, privateRoutes);
+app.use('/private', privateRateLimiter, privateRoutes);
 
 // ============================================
 // Error Handling
