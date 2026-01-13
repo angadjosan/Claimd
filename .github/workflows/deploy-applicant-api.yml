@@ -54,7 +54,7 @@ jobs:
             --function-name claimd-applicant-api \
             --region us-east-2
 
-      - name: Update Lambda environment variables
+      - name: Update Lambda configuration
         run: |
           SUPABASE_URL=$(aws ssm get-parameter --name "/calhacksy1/supabase/url" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
           SUPABASE_SERVICE_KEY=$(aws ssm get-parameter --name "/calhacksy1/supabase/service-key" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
@@ -63,6 +63,7 @@ jobs:
           
           aws lambda update-function-configuration \
             --function-name claimd-applicant-api \
+            --handler lambda.handler \
             --environment "Variables={NODE_ENV=production,SUPABASE_URL=$SUPABASE_URL,SUPABASE_SERVICE_KEY=$SUPABASE_SERVICE_KEY,SQS_QUEUE_URL=$SQS_QUEUE_URL,CORS_ORIGIN=$CORS_ORIGIN}" \
             --region us-east-2
           
