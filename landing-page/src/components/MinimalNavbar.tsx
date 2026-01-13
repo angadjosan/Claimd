@@ -1,9 +1,6 @@
-import './MinimalNavbar.css';
-
 // Ensure URLs always have a protocol to prevent relative URL issues
 const getUrlWithProtocol = (url: string, defaultUrl: string) => {
   const envUrl = url || defaultUrl;
-  // If URL doesn't start with http:// or https://, add https://
   if (!envUrl.startsWith('http://') && !envUrl.startsWith('https://')) {
     return `https://${envUrl}`;
   }
@@ -15,25 +12,25 @@ const CASEWORKER_URL = getUrlWithProtocol(import.meta.env.VITE_CASEWORKER_URL, '
 
 export default function MinimalNavbar() {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-white/80 border-b border-gray-200/30">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-border">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="flex justify-between items-center h-20">
-          <div className="text-2xl font-semibold tracking-wide gradient-text italic">
+        <div className="flex justify-between items-center h-16">
+          {/* Logo - clean, professional */}
+          <a href="/" className="text-xl font-semibold tracking-tight text-primary">
             Claimd
-          </div>
-          <div className="flex items-center gap-4">
-            <a 
-              href={`${CASEWORKER_URL}/dashboard`}
-              className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors duration-200"
+          </a>
+
+          {/* Navigation */}
+          <div className="flex items-center gap-6">
+            <a
+              href={`${CASEWORKER_URL}`}
+              className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors"
             >
-              Caseworker Portal
+              For Caseworkers
             </a>
-            <a 
-              href={`${APPLICANT_URL}/dashboard`}
-              className="text-sm font-medium text-white px-6 py-2.5 rounded-full transition-all duration-200 hover:opacity-90 hover:scale-105"
-              style={{
-                background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)'
-              }}
+            <a
+              href={`${APPLICANT_URL}`}
+              className="text-sm font-medium bg-primary text-primary-foreground px-5 py-2 rounded-lg hover:bg-primary/90 transition-colors"
             >
               Apply Now
             </a>
@@ -43,4 +40,3 @@ export default function MinimalNavbar() {
     </nav>
   );
 }
-

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertCircle, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { AlertCircle, Mail, Lock, ArrowRight, Loader2, Briefcase } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { authService } from '../../services/auth';
 import MinimalNavbar from '../../components/MinimalNavbar';
@@ -15,35 +15,31 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
   useEffect(() => {
-    // Check if already logged in and has correct role
     authService.getSession().then(async (session) => {
       if (session) {
         const role = await authService.getUserRole();
         if (role === 'caseworker') {
           navigate(redirectTo);
         } else if (role) {
-          // User has wrong role, sign them out
           await supabase.auth.signOut();
           setError('Access denied. This account is not authorized for caseworker access.');
         }
       }
     });
 
-    // Listen for auth changes
     const { data: { subscription } } = authService.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
         const role = await authService.getUserRole();
         if (role === 'caseworker') {
           navigate(redirectTo);
         } else if (role) {
-          // User has wrong role, sign them out
           await supabase.auth.signOut();
           setError('Access denied. This account is not authorized for caseworker access.');
         }
@@ -68,14 +64,13 @@ export default function AuthPage() {
           password: formData.password,
         });
         if (error) throw error;
-        
-        // Check user role after login
+
         const role = await authService.getUserRole();
         if (role !== 'caseworker') {
           await supabase.auth.signOut();
           throw new Error('Access denied. This account is not authorized for caseworker access.');
         }
-        
+
         navigate(redirectTo);
       } else if (mode === 'forgot_password') {
         const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
@@ -106,132 +101,180 @@ export default function AuthPage() {
 
   const getSubtitle = () => {
     switch (mode) {
-      case 'sign_in': return 'Sign in to continue';
-      case 'forgot_password': return "We'll send you a reset link";
+      case 'sign_in': return 'Caseworker Portal - Review and process applications';
+      case 'forgot_password': return "We'll send you a reset link to your email";
     }
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       <MinimalNavbar />
-      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 py-20">
-        <div className="max-w-md w-full">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-              {getTitle()}
-            </h1>
-            <p className="text-gray-600">
-              {getSubtitle()}
-            </p>
-          </div>
 
-          {/* Form Card */}
-          <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-            <div className="p-6 md:p-8">
-              {/* Error Message */}
-              {error && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-700">{error}</p>
-                </div>
-              )}
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-5xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            {/* Form Section */}
+            <div className="max-w-md mx-auto lg:mx-0 w-full">
+              {/* Header */}
+              <div className="mb-10">
+                <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
+                  {getTitle()}
+                </h1>
+                <p className="text-lg text-foreground/60">
+                  {getSubtitle()}
+                </p>
+              </div>
 
-              {/* Success Message */}
-              {success && (
-                <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md">
-                  <p className="text-sm text-green-700">{success}</p>
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Email */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address
-                    <span className="text-red-500 ml-1">*</span>
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="you@example.com"
-                      required
-                    />
+              {/* Form Card */}
+              <div className="bg-card border border-border rounded-2xl p-8">
+                {/* Error Message */}
+                {error && (
+                  <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-destructive">{error}</p>
                   </div>
-                </div>
+                )}
 
-                {/* Password - Not for Forgot Password */}
-                {mode !== 'forgot_password' && (
+                {/* Success Message */}
+                {success && (
+                  <div className="mb-6 p-4 bg-success/10 border border-success/20 rounded-lg">
+                    <p className="text-sm text-success">{success}</p>
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  {/* Email */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Password
-                      <span className="text-red-500 ml-1">*</span>
+                    <label className="block text-sm font-semibold text-foreground mb-2">
+                      Email Address
                     </label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-foreground/40" />
                       <input
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="••••••••"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="w-full pl-10 pr-4 py-3 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
+                        placeholder="you@example.com"
                         required
-                        minLength={6}
                       />
                     </div>
                   </div>
-                )}
 
-                {/* Forgot Password Link */}
-                {mode === 'sign_in' && (
-                  <div className="text-right">
+                  {/* Password */}
+                  {mode !== 'forgot_password' && (
+                    <div>
+                      <label className="block text-sm font-semibold text-foreground mb-2">
+                        Password
+                      </label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-foreground/40" />
+                        <input
+                          type="password"
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          className="w-full pl-10 pr-4 py-3 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
+                          placeholder="••••••••"
+                          required
+                          minLength={6}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Forgot Password Link */}
+                  {mode === 'sign_in' && (
+                    <div className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => switchMode('forgot_password')}
+                        className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                      >
+                        Forgot your password?
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        {mode === 'sign_in' && 'Sign In'}
+                        {mode === 'forgot_password' && 'Send Reset Link'}
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {/* Back Link */}
+                {mode === 'forgot_password' && (
+                  <div className="mt-6 text-center">
                     <button
                       type="button"
-                      onClick={() => switchMode('forgot_password')}
-                      className="text-sm text-blue-600 hover:text-blue-800"
+                      onClick={() => switchMode('sign_in')}
+                      className="text-sm text-foreground/60 hover:text-foreground transition-colors"
                     >
-                      Forgot your password?
+                      Back to sign in
                     </button>
                   </div>
                 )}
-
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full flex items-center justify-center px-4 py-2.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <>
-                      {mode === 'sign_in' && 'Sign In'}
-                      {mode === 'forgot_password' && 'Send Reset Link'}
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </>
-                  )}
-                </button>
-              </form>
+              </div>
             </div>
 
-            {/* Footer */}
-            <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
-              {mode === 'forgot_password' && (
-                <p className="text-sm text-center text-gray-600">
-                  Remember your password?{' '}
-                  <button
-                    type="button"
-                    onClick={() => switchMode('sign_in')}
-                    className="font-medium text-blue-600 hover:text-blue-800"
-                  >
-                    Sign in
-                  </button>
-                </p>
-              )}
+            {/* Image/Graphic Section */}
+            <div className="hidden lg:flex items-center justify-center">
+              <div className="w-full max-w-md">
+                {/* Gradient Illustration */}
+                <div className="relative h-80 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl p-8 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-24 h-24 bg-primary/15 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                      <Briefcase className="w-12 h-12 text-primary" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-foreground mb-3">
+                      Enterprise Grade
+                    </h3>
+                    <p className="text-foreground/60 leading-relaxed">
+                      Review, process, and approve applications with AI-assisted insights.
+                    </p>
+
+                    {/* Feature pills */}
+                    <div className="mt-8 space-y-3">
+                      <div className="flex items-center gap-3 text-sm text-foreground/70">
+                        <div className="w-2 h-2 bg-primary rounded-full"></div>
+                        <span>Real-time analytics</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-foreground/70">
+                        <div className="w-2 h-2 bg-accent rounded-full"></div>
+                        <span>AI recommendations</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-foreground/70">
+                        <div className="w-2 h-2 bg-primary rounded-full"></div>
+                        <span>Audit trails & compliance</span>
+                      </div>
+                    </div>
+
+                    {/* Contact Manager CTA */}
+                    <div className="mt-10 pt-8 border-t border-foreground/10">
+                      <p className="text-sm text-foreground/60 mb-3">
+                        Don't have access yet?
+                      </p>
+                      <a
+                        href="mailto:support@claimd.tech?subject=Caseworker%20Access%20Request"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground font-medium rounded-lg hover:bg-accent/90 transition-colors text-sm"
+                      >
+                        Contact Your Manager
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -239,4 +282,3 @@ export default function AuthPage() {
     </div>
   );
 }
-
