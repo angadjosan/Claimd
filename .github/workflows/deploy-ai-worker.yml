@@ -89,10 +89,11 @@ jobs:
           SUPABASE_SERVICE_KEY=$(aws ssm get-parameter --name "/calhacksy1/supabase/service-key" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
           ANTHROPIC_API_KEY=$(aws ssm get-parameter --name "/calhacksy1/anthropic/api-key" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
           SQS_QUEUE_URL=$(aws ssm get-parameter --name "/calhacksy1/sqs/queue-url" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
+          DEMO_CASEWORKER_USER_ID=$(aws ssm get-parameter --name "/calhacksy1/demo/caseworker-user-id" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
           
           aws lambda update-function-configuration \
             --function-name claimd-ai-worker \
-            --environment "Variables={SUPABASE_URL=$SUPABASE_URL,SUPABASE_SERVICE_KEY=$SUPABASE_SERVICE_KEY,ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY,SQS_QUEUE_URL=$SQS_QUEUE_URL}" \
+            --environment "Variables={SUPABASE_URL=$SUPABASE_URL,SUPABASE_SERVICE_KEY=$SUPABASE_SERVICE_KEY,ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY,SQS_QUEUE_URL=$SQS_QUEUE_URL,DEMO_CASEWORKER_USER_ID=$DEMO_CASEWORKER_USER_ID}" \
             --region us-east-2
           
           echo "Waiting for Lambda function configuration update to complete..."

@@ -37,6 +37,18 @@ jobs:
         working-directory: caseworker/frontend
         run: npm ci
 
+      - name: Configure AWS credentials for SSM
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::211125407739:role/claimd-github-deployer
+          aws-region: us-east-2
+
+      - name: Fetch demo caseworker user ID from SSM
+        id: fetch-demo-id
+        run: |
+          DEMO_CASEWORKER_ID=$(aws ssm get-parameter --name "/calhacksy1/demo/caseworker-user-id" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
+          echo "VITE_DEMO_CASEWORKER_USER_ID=$DEMO_CASEWORKER_ID" >> $GITHUB_ENV
+
       - name: Build
         working-directory: caseworker/frontend
         env:
@@ -44,6 +56,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_API_URL: ${{ secrets.VITE_CASEWORKER_API_URL }}
           VITE_BASE_URL: ${{ secrets.VITE_BASE_URL }}
+          VITE_DEMO_CASEWORKER_USER_ID: ${{ env.VITE_DEMO_CASEWORKER_USER_ID }}
         run: npm run build
 
       - name: Deploy to S3

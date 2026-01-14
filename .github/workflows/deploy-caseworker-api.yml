@@ -59,11 +59,13 @@ jobs:
           SUPABASE_URL=$(aws ssm get-parameter --name "/calhacksy1/supabase/url" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
           SUPABASE_SERVICE_KEY=$(aws ssm get-parameter --name "/calhacksy1/supabase/service-key" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
           CORS_ORIGIN=$(aws ssm get-parameter --name "/calhacksy1/cors/caseworker-frontend-origin" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
+          DEMO_APPLICANT_USER_ID=$(aws ssm get-parameter --name "/calhacksy1/demo/applicant-user-id" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
+          DEMO_CASEWORKER_USER_ID=$(aws ssm get-parameter --name "/calhacksy1/demo/caseworker-user-id" --with-decryption --query "Parameter.Value" --output text --region us-east-2)
           
           aws lambda update-function-configuration \
             --function-name claimd-caseworker-api \
             --handler lambda.handler \
-            --environment "Variables={NODE_ENV=production,SUPABASE_URL=$SUPABASE_URL,SUPABASE_SERVICE_KEY=$SUPABASE_SERVICE_KEY,CORS_ORIGIN=$CORS_ORIGIN}" \
+            --environment "Variables={NODE_ENV=production,SUPABASE_URL=$SUPABASE_URL,SUPABASE_SERVICE_KEY=$SUPABASE_SERVICE_KEY,CORS_ORIGIN=$CORS_ORIGIN,DEMO_APPLICANT_USER_ID=$DEMO_APPLICANT_USER_ID,DEMO_CASEWORKER_USER_ID=$DEMO_CASEWORKER_USER_ID}" \
             --region us-east-2
           
           echo "Waiting for Lambda function configuration update to complete..."
