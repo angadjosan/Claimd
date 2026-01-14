@@ -1,36 +1,29 @@
 /**
- * Dashboard Routes
- * Handles caseworker dashboard data retrieval and actions
+ * Demo Dashboard Routes
+ * Handles caseworker dashboard data retrieval in demo mode
+ * Filters by demo_session_id for session isolation
  * Uses shared utilities from utils/dashboard/
  */
 const express = require('express');
 const router = express.Router();
 const {
-  getUser,
   transformAssignmentData,
   buildApplicationDetailResponse,
   updateAssignmentAccess,
 } = require('../../utils/dashboard/queries');
 
 /**
- * GET /api/private/dashboard/applications
- * Get all applications assigned to the current caseworker
- * Returns list with applicant info, status, and review status
+ * GET /api/demo/dashboard/applications
+ * Get all applications assigned to demo caseworker for current session
+ * CRITICAL: Filters by demo_session_id for session isolation
  */
 router.get('/applications', async (req, res) => {
   try {
     const supabase = req.app.get('supabase');
-    const authUser = req.user;
-    const userDbId = req.userDbId;
+    const caseworkerId = req.demoCaseworkerId; // From env var, IGNORE frontend
+    const sessionId = req.demoSessionId; // Validated UUID v4
 
-    if (!userDbId) {
-      return res.status(500).json({
-        error: 'Internal Server Error',
-        message: 'User database ID not found'
-      });
-    }
-
-    // Get all assigned applications for this caseworker
+    // CRITICAL: Explicit filtering with JOIN for session isolation
     const { data: assignments, error: assignmentsError } = await supabase
       .from('assigned_applications')
       .select(`
@@ -45,12 +38,13 @@ router.get('/applications', async (req, res) => {
         recommendation,
         application_id,
         assigned_by,
-        applications (
+        applications!inner (
           id,
           status,
           submitted_at,
           created_at,
           updated_at,
+          demo_session_id,
           reasoning_overall_recommendation,
           reasoning_confidence_score,
           reasoning_summary,
@@ -63,27 +57,34 @@ router.get('/applications', async (req, res) => {
           )
         )
       `)
-      .eq('reviewer_id', userDbId)
+      .eq('reviewer_id', caseworkerId) // Demo caseworker only
+      .eq('applications.demo_session_id', sessionId) // Current session only
+      .not('applications.demo_session_id', 'is', null) // Only demo apps
       .order('priority', { ascending: false })
       .order('assigned_at', { ascending: false });
 
     if (assignmentsError) {
-      console.error('Assignments fetch error:', assignmentsError);
+      console.error('[DEMO] Assignments fetch error:', assignmentsError);
       return res.status(500).json({
         error: 'Failed to fetch assigned applications',
         message: assignmentsError.message
       });
     }
 
+    // Filter out any assignments where application.demo_session_id doesn't match (extra safety)
+    const filteredAssignments = assignments.filter(assignment => 
+      assignment.applications?.demo_session_id === sessionId
+    );
+
     // Transform the data for easier frontend consumption
-    const applications = assignments.map(transformAssignmentData);
+    const applications = filteredAssignments.map(transformAssignmentData);
 
     res.json({
       success: true,
       data: applications
     });
   } catch (error) {
-    console.error('Dashboard applications fetch error:', error);
+    console.error('[DEMO] Dashboard applications fetch error:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message
@@ -92,49 +93,46 @@ router.get('/applications', async (req, res) => {
 });
 
 /**
- * GET /api/private/dashboard/applications/:id
- * Get detailed application data for review
- * Includes all application data, AI reasoning, and review assignment info
+ * GET /api/demo/dashboard/applications/:id
+ * Get detailed application data for review (must belong to current demo session)
  */
 router.get('/applications/:id', async (req, res) => {
   try {
     const supabase = req.app.get('supabase');
-    const authUser = req.user;
-    const userDbId = req.userDbId;
+    const caseworkerId = req.demoCaseworkerId;
+    const sessionId = req.demoSessionId;
     const applicationId = req.params.id;
 
-    if (!userDbId) {
-      return res.status(500).json({
-        error: 'Internal Server Error',
-        message: 'User database ID not found'
-      });
-    }
-
-    // Verify this application is assigned to the current caseworker
+    // CRITICAL: Verify assignment belongs to demo caseworker AND current session
     const { data: assignment, error: assignmentError } = await supabase
       .from('assigned_applications')
-      .select('*')
+      .select(`
+        *,
+        applications!inner (*)
+      `)
       .eq('application_id', applicationId)
-      .eq('reviewer_id', userDbId)
+      .eq('reviewer_id', caseworkerId) // Demo caseworker only
+      .eq('applications.demo_session_id', sessionId) // Current session only
+      .not('applications.demo_session_id', 'is', null)
       .single();
 
-    if (assignmentError || !assignment) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'This application is not assigned to you'
+    if (assignmentError || !assignment || assignment.applications?.demo_session_id !== sessionId) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Demo assignment not found or access denied'
       });
     }
 
     // Get assigned_by user info if exists
     let assignedByUser = null;
     if (assignment.assigned_by) {
-      const { data: user, error: userError } = await supabase
+      const { data: user } = await supabase
         .from('users')
         .select('id, first_name, last_name, email')
         .eq('id', assignment.assigned_by)
         .single();
       
-      if (!userError && user) {
+      if (user) {
         assignedByUser = {
           id: user.id,
           name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
@@ -144,7 +142,6 @@ router.get('/applications/:id', async (req, res) => {
     }
 
     // Get the full application with applicant info
-    // Include all AI reasoning fields and supporting data
     const { data: application, error: applicationError } = await supabase
       .from('applications')
       .select(`
@@ -158,6 +155,7 @@ router.get('/applications/:id', async (req, res) => {
         )
       `)
       .eq('id', applicationId)
+      .eq('demo_session_id', sessionId) // Extra safety check
       .single();
 
     if (applicationError || !application) {
@@ -171,19 +169,13 @@ router.get('/applications/:id', async (req, res) => {
     await updateAssignmentAccess(supabase, assignment);
 
     // Get all files for this application
-    const { data: files, error: filesError } = await supabase
+    const { data: files } = await supabase
       .from('application_files')
       .select('*')
       .eq('application_id', applicationId)
       .eq('is_deleted', false)
       .order('created_at', { ascending: true });
 
-    if (filesError) {
-      console.error('Files fetch error:', filesError);
-      // Non-fatal, continue without files
-    }
-
-    // Format the response according to data_mapping.md structure
     const response = buildApplicationDetailResponse(application, assignment, assignedByUser, files);
 
     res.json({
@@ -191,7 +183,7 @@ router.get('/applications/:id', async (req, res) => {
       data: response
     });
   } catch (error) {
-    console.error('Application detail fetch error:', error);
+    console.error('[DEMO] Application detail fetch error:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message
@@ -200,24 +192,17 @@ router.get('/applications/:id', async (req, res) => {
 });
 
 /**
- * PATCH /api/private/dashboard/applications/:id/review-status
- * Update the review status of an assigned application
+ * PATCH /api/demo/dashboard/applications/:id/review-status
+ * Update the review status of an assigned application (demo mode)
  */
 router.patch('/applications/:id/review-status', async (req, res) => {
   try {
     const supabase = req.app.get('supabase');
-    const userDbId = req.userDbId;
+    const caseworkerId = req.demoCaseworkerId;
+    const sessionId = req.demoSessionId;
     const applicationId = req.params.id;
     const { review_status } = req.body;
 
-    if (!userDbId) {
-      return res.status(500).json({
-        error: 'Internal Server Error',
-        message: 'User database ID not found'
-      });
-    }
-
-    // Validate review_status
     const validStatuses = ['unopened', 'in_progress', 'completed'];
     if (!review_status || !validStatuses.includes(review_status)) {
       return res.status(400).json({
@@ -226,38 +211,38 @@ router.patch('/applications/:id/review-status', async (req, res) => {
       });
     }
 
-    // Verify assignment
+    // Verify assignment belongs to demo caseworker AND current session
     const { data: assignment, error: assignmentError } = await supabase
       .from('assigned_applications')
-      .select('*')
+      .select(`
+        *,
+        applications!inner (demo_session_id)
+      `)
       .eq('application_id', applicationId)
-      .eq('reviewer_id', userDbId)
+      .eq('reviewer_id', caseworkerId)
+      .eq('applications.demo_session_id', sessionId)
       .single();
 
-    if (assignmentError || !assignment) {
+    if (assignmentError || !assignment || assignment.applications?.demo_session_id !== sessionId) {
       return res.status(403).json({
         error: 'Forbidden',
         message: 'This application is not assigned to you'
       });
     }
 
-    // Prepare update data
     const updateData = {
       review_status,
       last_accessed_at: new Date().toISOString()
     };
 
-    // Set first_opened_at if transitioning from unopened
     if (assignment.review_status === 'unopened' && review_status !== 'unopened') {
       updateData.first_opened_at = new Date().toISOString();
     }
 
-    // Set completed_at if marking as completed
     if (review_status === 'completed' && !assignment.completed_at) {
       updateData.completed_at = new Date().toISOString();
     }
 
-    // Update the assignment
     const { data: updatedAssignment, error: updateError } = await supabase
       .from('assigned_applications')
       .update(updateData)
@@ -266,7 +251,6 @@ router.patch('/applications/:id/review-status', async (req, res) => {
       .single();
 
     if (updateError) {
-      console.error('Review status update error:', updateError);
       return res.status(500).json({
         error: 'Failed to update review status',
         message: updateError.message
@@ -278,7 +262,7 @@ router.patch('/applications/:id/review-status', async (req, res) => {
       data: updatedAssignment
     });
   } catch (error) {
-    console.error('Review status update error:', error);
+    console.error('[DEMO] Review status update error:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message
@@ -287,39 +271,36 @@ router.patch('/applications/:id/review-status', async (req, res) => {
 });
 
 /**
- * PATCH /api/private/dashboard/applications/:id/reviewer-notes
- * Update reviewer notes (internal notes)
+ * PATCH /api/demo/dashboard/applications/:id/reviewer-notes
+ * Update reviewer notes (demo mode)
  */
 router.patch('/applications/:id/reviewer-notes', async (req, res) => {
   try {
     const supabase = req.app.get('supabase');
-    const userDbId = req.userDbId;
+    const caseworkerId = req.demoCaseworkerId;
+    const sessionId = req.demoSessionId;
     const applicationId = req.params.id;
     const { reviewer_notes } = req.body;
-
-    if (!userDbId) {
-      return res.status(500).json({
-        error: 'Internal Server Error',
-        message: 'User database ID not found'
-      });
-    }
 
     // Verify assignment
     const { data: assignment, error: assignmentError } = await supabase
       .from('assigned_applications')
-      .select('id')
+      .select(`
+        id,
+        applications!inner (demo_session_id)
+      `)
       .eq('application_id', applicationId)
-      .eq('reviewer_id', userDbId)
+      .eq('reviewer_id', caseworkerId)
+      .eq('applications.demo_session_id', sessionId)
       .single();
 
-    if (assignmentError || !assignment) {
+    if (assignmentError || !assignment || assignment.applications?.demo_session_id !== sessionId) {
       return res.status(403).json({
         error: 'Forbidden',
         message: 'This application is not assigned to you'
       });
     }
 
-    // Update reviewer notes
     const { data: updatedAssignment, error: updateError } = await supabase
       .from('assigned_applications')
       .update({
@@ -331,7 +312,6 @@ router.patch('/applications/:id/reviewer-notes', async (req, res) => {
       .single();
 
     if (updateError) {
-      console.error('Reviewer notes update error:', updateError);
       return res.status(500).json({
         error: 'Failed to update reviewer notes',
         message: updateError.message
@@ -343,7 +323,7 @@ router.patch('/applications/:id/reviewer-notes', async (req, res) => {
       data: updatedAssignment
     });
   } catch (error) {
-    console.error('Reviewer notes update error:', error);
+    console.error('[DEMO] Reviewer notes update error:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message
@@ -352,24 +332,17 @@ router.patch('/applications/:id/reviewer-notes', async (req, res) => {
 });
 
 /**
- * POST /api/private/dashboard/applications/:id/recommendation
- * Submit a recommendation for an application (transactional via DB function)
+ * POST /api/demo/dashboard/applications/:id/recommendation
+ * Submit a recommendation for an application (demo mode)
  */
 router.post('/applications/:id/recommendation', async (req, res) => {
   try {
     const supabase = req.app.get('supabase');
-    const userDbId = req.userDbId;
+    const caseworkerId = req.demoCaseworkerId;
+    const sessionId = req.demoSessionId;
     const applicationId = req.params.id;
     const { recommendation, recommendation_notes } = req.body;
 
-    if (!userDbId) {
-      return res.status(500).json({
-        error: 'Internal Server Error',
-        message: 'User database ID not found'
-      });
-    }
-
-    // Validate recommendation
     const validRecommendations = ['approve', 'deny', 'request_more_info', 'escalate', 'needs_medical_review'];
     if (!recommendation || !validRecommendations.includes(recommendation)) {
       return res.status(400).json({
@@ -378,34 +351,46 @@ router.post('/applications/:id/recommendation', async (req, res) => {
       });
     }
 
-    // Use database function for transactional recommendation submission
-    // This ensures all updates happen atomically
+    // Verify assignment belongs to demo caseworker AND current session
+    const { data: assignment, error: assignmentError } = await supabase
+      .from('assigned_applications')
+      .select(`
+        id,
+        applications!inner (demo_session_id)
+      `)
+      .eq('application_id', applicationId)
+      .eq('reviewer_id', caseworkerId)
+      .eq('applications.demo_session_id', sessionId)
+      .single();
+
+    if (assignmentError || !assignment || assignment.applications?.demo_session_id !== sessionId) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'This application is not assigned to you'
+      });
+    }
+
     const { data: updatedAssignment, error: functionError } = await supabase
       .rpc('submit_recommendation', {
         p_application_id: applicationId,
-        p_reviewer_id: userDbId,
+        p_reviewer_id: caseworkerId,
         p_recommendation: recommendation,
         p_recommendation_notes: recommendation_notes || null
       });
 
     if (functionError) {
-      console.error('Recommendation submission error:', functionError);
-      
-      // Handle specific error cases
       if (functionError.message.includes('not assigned')) {
         return res.status(403).json({
           error: 'Forbidden',
           message: 'This application is not assigned to you'
         });
       }
-      
       if (functionError.message.includes('not found')) {
         return res.status(404).json({
           error: 'Not Found',
           message: 'Application not found'
         });
       }
-
       return res.status(500).json({
         error: 'Failed to submit recommendation',
         message: functionError.message
@@ -424,7 +409,7 @@ router.post('/applications/:id/recommendation', async (req, res) => {
       data: updatedAssignment
     });
   } catch (error) {
-    console.error('Recommendation submission error:', error);
+    console.error('[DEMO] Recommendation submission error:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message
@@ -433,38 +418,35 @@ router.post('/applications/:id/recommendation', async (req, res) => {
 });
 
 /**
- * GET /api/private/dashboard/applications/:id/files
- * Get all files for an application (metadata only)
+ * GET /api/demo/dashboard/applications/:id/files
+ * Get all files for an application (demo mode)
  */
 router.get('/applications/:id/files', async (req, res) => {
   try {
     const supabase = req.app.get('supabase');
-    const userDbId = req.userDbId;
+    const caseworkerId = req.demoCaseworkerId;
+    const sessionId = req.demoSessionId;
     const applicationId = req.params.id;
 
-    if (!userDbId) {
-      return res.status(500).json({
-        error: 'Internal Server Error',
-        message: 'User database ID not found'
-      });
-    }
-
-    // Verify this application is assigned to the current caseworker
+    // Verify this application is assigned to the demo caseworker AND current session
     const { data: assignment, error: assignmentError } = await supabase
       .from('assigned_applications')
-      .select('id')
+      .select(`
+        id,
+        applications!inner (demo_session_id)
+      `)
       .eq('application_id', applicationId)
-      .eq('reviewer_id', userDbId)
+      .eq('reviewer_id', caseworkerId)
+      .eq('applications.demo_session_id', sessionId)
       .single();
 
-    if (assignmentError || !assignment) {
+    if (assignmentError || !assignment || assignment.applications?.demo_session_id !== sessionId) {
       return res.status(403).json({
         error: 'Forbidden',
         message: 'This application is not assigned to you'
       });
     }
 
-    // Get all files for this application
     const { data: files, error: filesError } = await supabase
       .from('application_files')
       .select('*')
@@ -473,7 +455,6 @@ router.get('/applications/:id/files', async (req, res) => {
       .order('created_at', { ascending: true });
 
     if (filesError) {
-      console.error('Files fetch error:', filesError);
       return res.status(500).json({
         error: 'Failed to fetch files',
         message: filesError.message
@@ -485,7 +466,7 @@ router.get('/applications/:id/files', async (req, res) => {
       data: files || []
     });
   } catch (error) {
-    console.error('Files fetch error:', error);
+    console.error('[DEMO] Files fetch error:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message
@@ -494,39 +475,36 @@ router.get('/applications/:id/files', async (req, res) => {
 });
 
 /**
- * GET /api/private/dashboard/applications/:id/files/:fileId/download
- * Get a signed URL to download a specific file
+ * GET /api/demo/dashboard/applications/:id/files/:fileId/download
+ * Get a signed URL to download a specific file (demo mode)
  */
 router.get('/applications/:id/files/:fileId/download', async (req, res) => {
   try {
     const supabase = req.app.get('supabase');
-    const userDbId = req.userDbId;
+    const caseworkerId = req.demoCaseworkerId;
+    const sessionId = req.demoSessionId;
     const applicationId = req.params.id;
     const fileId = req.params.fileId;
 
-    if (!userDbId) {
-      return res.status(500).json({
-        error: 'Internal Server Error',
-        message: 'User database ID not found'
-      });
-    }
-
-    // Verify this application is assigned to the current caseworker
+    // Verify this application is assigned to the demo caseworker AND current session
     const { data: assignment, error: assignmentError } = await supabase
       .from('assigned_applications')
-      .select('id')
+      .select(`
+        id,
+        applications!inner (demo_session_id)
+      `)
       .eq('application_id', applicationId)
-      .eq('reviewer_id', userDbId)
+      .eq('reviewer_id', caseworkerId)
+      .eq('applications.demo_session_id', sessionId)
       .single();
 
-    if (assignmentError || !assignment) {
+    if (assignmentError || !assignment || assignment.applications?.demo_session_id !== sessionId) {
       return res.status(403).json({
         error: 'Forbidden',
         message: 'This application is not assigned to you'
       });
     }
 
-    // Get file metadata
     const { data: file, error: fileError } = await supabase
       .from('application_files')
       .select('*')
@@ -542,14 +520,12 @@ router.get('/applications/:id/files/:fileId/download', async (req, res) => {
       });
     }
 
-    // Generate signed URL (valid for 1 hour)
     const { data: signedUrlData, error: urlError } = await supabase
       .storage
       .from(file.storage_bucket)
-      .createSignedUrl(file.storage_path, 3600); // 1 hour expiry
+      .createSignedUrl(file.storage_path, 3600);
 
     if (urlError || !signedUrlData) {
-      console.error('Signed URL generation error:', urlError);
       return res.status(500).json({
         error: 'Failed to generate download URL',
         message: urlError?.message || 'Unknown error'
@@ -574,7 +550,7 @@ router.get('/applications/:id/files/:fileId/download', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('File download URL error:', error);
+    console.error('[DEMO] File download URL error:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message
@@ -583,4 +559,3 @@ router.get('/applications/:id/files/:fileId/download', async (req, res) => {
 });
 
 module.exports = router;
-

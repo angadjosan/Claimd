@@ -5,10 +5,13 @@ import RootRedirect from './components/RootRedirect';
 import InitAndRedirect from './components/InitAndRedirect';
 import { ToastProvider } from './components/Toast';
 import { FormProvider } from './context/FormContext';
+import { DemoProvider } from './context/DemoContext';
 
 // Lazy load all pages for better performance
 const AuthPage = lazy(() => import('./pages/Auth/Auth'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const DemoForm = lazy(() => import('./pages/Demo/DemoForm'));
+const DemoDashboard = lazy(() => import('./pages/Demo/DemoDashboard'));
 
 function App() {
   return (
@@ -30,6 +33,25 @@ function App() {
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/dashboard" element={<InitAndRedirect />} />
               <Route path="/apply" element={<InitAndRedirect />} />
+              {/* Demo routes - wrapped with DemoProvider */}
+              <Route 
+                path="/demo" 
+                element={
+                  <DemoProvider>
+                    <FormProvider>
+                      <DemoForm />
+                    </FormProvider>
+                  </DemoProvider>
+                } 
+              />
+              <Route 
+                path="/demo/dashboard" 
+                element={
+                  <DemoProvider>
+                    <DemoDashboard />
+                  </DemoProvider>
+                } 
+              />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

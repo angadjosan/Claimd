@@ -29,6 +29,16 @@ CloudFront → S3 (React) + API Gateway → Lambda (Node.js/Python) → Supabase
 - **Frontend**: Port 5191 (dev) → S3, Routes: `/`, `/dashboard`, `/application/:id`
 - **Backend**: Port 3002 (dev) → Lambda `claimd-caseworker-api`, Entry: `App.js`
 
+### Demo Mode
+- **Public demo routes** (no authentication required):
+  - Applicant: `/demo` (form), `/demo/dashboard`
+  - Caseworker: `/demo/caseworker/dashboard`, `/demo/caseworker/dashboard/applications/:id`
+- **Backend**: `/api/demo/*` routes (demo middleware handles session isolation)
+- **Important**: When updating dashboard/application detail components, **MUST update both**:
+  - Live/production versions (`Dashboard.tsx`, `ApplicationDetail.tsx`, `ActionPanel.tsx`)
+  - Demo versions (`DemoDashboard.tsx`, `DemoApplicationDetail.tsx`, `DemoActionPanel.tsx`)
+- Demo components use `demoApi` service and `DemoContext`; live components use `api` service and auth context
+
 ### AI Processing Service (`ai-app-processing-service/`)
 - **Runtime**: Python 3.13 Lambda `claimd-ai-worker`
 - **Prompts**: S3 bucket `ai-service-configs` (`prompts/*.md`, `schemas/*.json`)
@@ -191,3 +201,17 @@ aws cloudfront create-invalidation --distribution-id E19N9CLEWYM9KP --paths "/*"
 - API Gateway v2 requires `$default` stage (not "default")
 - Lambda uses `@vendia/serverless-express` (not `@codegenie/serverless-express`)
 - CloudFront provides same-origin requests (no CORS issues)
+
+## Development Guidelines
+
+**CRITICAL**: When modifying dashboard or application detail components, **ALWAYS update both live and demo versions**:
+
+- **Applicant Frontend**:
+  - Live: `applicant/frontend/src/pages/Dashboard/Dashboard.tsx`, `applicant/frontend/src/pages/Application/ApplicationDetail.tsx`
+  - Demo: `applicant/frontend/src/pages/Demo/DemoDashboard.tsx`, `applicant/frontend/src/pages/Demo/DemoForm.tsx`
+
+- **Caseworker Frontend**:
+  - Live: `caseworker/frontend/src/pages/Dashboard/Dashboard.tsx`, `caseworker/frontend/src/pages/Dashboard/ApplicationDetail.tsx`, `caseworker/frontend/src/components/ActionPanel.tsx`
+  - Demo: `caseworker/frontend/src/pages/Demo/DemoDashboard.tsx`, `caseworker/frontend/src/pages/Demo/DemoApplicationDetail.tsx`, `caseworker/frontend/src/components/DemoActionPanel.tsx`
+
+Demo components use `demoApi` service and `DemoContext`; live components use `api` service and auth context. Both should maintain feature parity.

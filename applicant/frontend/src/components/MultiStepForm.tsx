@@ -37,7 +37,17 @@ const STEPS = [
   { id: 13, title: 'Review' },
 ];
 
-export default function MultiStepForm() {
+interface MultiStepFormProps {
+  onSubmit?: (formData: any) => Promise<{ data: { application_id: string; status: string; created_at: string } }>;
+  onSuccessNavigate?: string;
+  successMessage?: string;
+}
+
+export default function MultiStepForm({ 
+  onSubmit, 
+  onSuccessNavigate = '/dashboard',
+  successMessage 
+}: MultiStepFormProps = {}) {
   const {
     formData,
     updateFormData,
@@ -95,12 +105,14 @@ export default function MultiStepForm() {
     console.log('[FORM] Starting form submission', {
       timestamp: new Date().toISOString(),
       step: currentStep,
+      customHandler: !!onSubmit,
     });
 
     try {
-      // Submit the application - returns immediately after acceptance (202)
-      // Processing continues asynchronously on the server
-      const response = await api.submitApplication(formData);
+      // Use custom submit handler if provided (for demo mode), otherwise use default API
+      const response = onSubmit 
+        ? await onSubmit(formData)
+        : await api.submitApplication(formData);
       
       const submitDuration = Date.now() - submitStartTime;
       console.log('[FORM] Submission accepted', {
@@ -111,7 +123,7 @@ export default function MultiStepForm() {
       
       // Show success message immediately - processing continues in background
       showToast(
-        'Application submitted successfully! Your application is being processed. You will receive a confirmation email shortly.', 
+        successMessage || 'Application submitted successfully! Your application is being processed. You will receive a confirmation email shortly.', 
         'success'
       );
       
@@ -119,7 +131,7 @@ export default function MultiStepForm() {
       clearFormData();
       
       // Redirect to dashboard immediately - don't wait for full processing
-      navigate('/dashboard');
+      navigate(onSuccessNavigate);
       
     } catch (error) {
       const submitDuration = Date.now() - submitStartTime;

@@ -5,11 +5,14 @@ import ProtectedRoute from './components/ProtectedRoute';
 import RootRedirect from './components/RootRedirect';
 import InitAndRedirect from './components/InitAndRedirect';
 import { ToastProvider } from './components/Toast';
+import { DemoProvider } from './context/DemoContext';
 
 // Lazy load all pages for better performance
 const AuthPage = lazy(() => import('./pages/Auth/Auth'));
 const ApplicationDetail = lazy(() => import('./pages/Dashboard/ApplicationDetail'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const DemoDashboard = lazy(() => import('./pages/Demo/DemoDashboard'));
+const DemoApplicationDetail = lazy(() => import('./pages/Demo/DemoApplicationDetail'));
 
 function App() {
   return (
@@ -39,6 +42,23 @@ function App() {
                     <ApplicationDetail />
                   </ProtectedRoute>
                 }
+              />
+              {/* Demo routes - wrapped with DemoProvider */}
+              <Route 
+                path="/demo/caseworker/dashboard" 
+                element={
+                  <DemoProvider>
+                    <DemoDashboard />
+                  </DemoProvider>
+                } 
+              />
+              <Route 
+                path="/demo/caseworker/dashboard/applications/:id" 
+                element={
+                  <DemoProvider>
+                    <DemoApplicationDetail />
+                  </DemoProvider>
+                } 
               />
               <Route path="*" element={<NotFound />} />
             </Routes>
