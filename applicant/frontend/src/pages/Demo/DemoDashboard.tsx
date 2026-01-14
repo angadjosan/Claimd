@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { demoApi } from '../../services/demoApi';
 import { useDemoContext } from '../../context/DemoContext';
@@ -77,7 +76,6 @@ function getStatusBadge(status: string) {
 const DemoDashboard: React.FC = () => {
   const { getDemoHeaders, pollAssignmentStatus } = useDemoContext();
   const { showToast } = useToast();
-  const navigate = useNavigate();
   const [applications, setApplications] = useState<ApplicationSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [assignmentReady, setAssignmentReady] = useState<Record<string, boolean>>({});

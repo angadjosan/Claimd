@@ -1,5 +1,4 @@
 import { config } from '../config/env';
-import { useDemoContext } from '../context/DemoContext';
 import type { FormData } from '../types/form';
 
 // Re-export types from api.ts
@@ -138,7 +137,6 @@ export const demoApi = {
    * Submit a new application in demo mode
    */
   async submitApplication(formData: FormData, getDemoHeaders: () => Record<string, string>): Promise<SubmitApplicationResponse> {
-    const submissionStartTime = Date.now();
     const requestId = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
     
     console.log('[DEMO] Starting application submission', {

@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import MinimalNavbar from '../../components/MinimalNavbar';
 import MultiStepForm from '../../components/MultiStepForm';
 import { DemoProvider, useDemoContext } from '../../context/DemoContext';

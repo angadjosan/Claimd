@@ -1,6 +1,9 @@
 import { config } from '../config/env';
 import type { ApplicationListItem, ApplicationDetail } from './api';
 
+// Re-export types for convenience
+export type { ApplicationListItem, ApplicationDetail };
+
 interface ApiResponse<T> {
   success: boolean;
   data: T;
