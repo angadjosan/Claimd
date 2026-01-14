@@ -392,10 +392,42 @@ def update_db_with_ai_output(output, application_id, application_data):
 def assign_case_to_caseworker(application_id):
     """
     Assign a case to an available caseworker, distributing evenly.
+    For demo applications, always assign to demo caseworker.
     Returns the assigned caseworker_id or None if no caseworkers available.
     """
     logger.info(f"Assigning application {application_id} to a caseworker")
     
+    # Check if this is a demo application
+    app_response = supabase.table('applications').select('demo_session_id').eq('id', application_id).execute()
+    is_demo = app_response.data and app_response.data[0].get('demo_session_id') is not None
+    
+    if is_demo:
+        # Demo application - assign to demo caseworker
+        demo_caseworker_id = os.getenv('DEMO_CASEWORKER_USER_ID')
+        if not demo_caseworker_id:
+            logger.error("DEMO_CASEWORKER_USER_ID not configured. Cannot assign demo application.")
+            return None
+        
+        logger.info(f"[DEMO] Assigning demo application {application_id} to demo caseworker {demo_caseworker_id}")
+        
+        try:
+            assignment_response = supabase.rpc('assign_reviewer', {
+                'p_application_id': application_id,
+                'p_reviewer_id': demo_caseworker_id,
+                'p_priority': 0
+            }).execute()
+            
+            if assignment_response.data:
+                logger.info(f"[DEMO] Successfully assigned application {application_id} to demo caseworker {demo_caseworker_id}")
+                return demo_caseworker_id
+            else:
+                logger.error(f"[DEMO] Failed to assign application {application_id}")
+                return None
+        except Exception as e:
+            logger.error(f"[DEMO] Error assigning application {application_id} to demo caseworker: {e}")
+            return None
+    
+    # Normal application - use standard assignment logic
     # Get all active and available caseworkers
     caseworkers_response = supabase.table('users').select('id').eq('role', 'caseworker').eq('is_active', True).eq('caseworker_available', True).execute()
     
