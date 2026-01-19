@@ -63,10 +63,94 @@ const AutoFillButton: React.FC = () => {
 };
 
 /**
+ * Email Collection Component
+ */
+const EmailCollectionForm: React.FC<{ onEmailSubmitted: () => void }> = ({ onEmailSubmitted }) => {
+  const [email, setEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { getDemoHeaders } = useDemoContext();
+  const { showToast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    // Basic email validation
+    if (!email || !email.includes('@')) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await demoApi.saveEmail(email, getDemoHeaders);
+      // Store in localStorage to remember for this session
+      localStorage.setItem('demo_email_collected', 'true');
+      localStorage.setItem('demo_email', email);
+      showToast('Email saved successfully!', 'success');
+      onEmailSubmitted();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save email';
+      setError(errorMessage);
+      showToast(errorMessage, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-white flex items-center justify-center px-4">
+      <div className="max-w-md w-full">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Try the Demo
+          </h1>
+          <p className="text-gray-600">
+            Enter your email to get started with the demo
+          </p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address
+            </label>
+            <input
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your.email@example.com"
+              required
+              disabled={isLoading}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            {error && (
+              <p className="mt-2 text-sm text-red-600">{error}</p>
+            )}
+          </div>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full px-6 py-3 bg-gradient-to-r from-[#8B5CF6] to-[#EC4899] text-white font-semibold rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? 'Saving...' : 'Continue to Demo'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+/**
  * Demo Form Wrapper Component (uses demo context)
  */
 const DemoFormContent: React.FC = () => {
   const { demoSessionId, getDemoHeaders } = useDemoContext();
+  const [emailCollected, setEmailCollected] = useState(() => {
+    // Check if email was already collected in this session
+    return localStorage.getItem('demo_email_collected') === 'true';
+  });
 
   // Custom submit handler for demo mode
   const handleDemoSubmit = async (formData: any) => {
@@ -75,6 +159,11 @@ const DemoFormContent: React.FC = () => {
     }
     return await demoApi.submitApplication(formData, getDemoHeaders);
   };
+
+  // Show email collection form first if email hasn't been collected
+  if (!emailCollected) {
+    return <EmailCollectionForm onEmailSubmitted={() => setEmailCollected(true)} />;
+  }
 
   return (
     <div className="min-h-screen bg-white">

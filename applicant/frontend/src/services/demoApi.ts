@@ -249,4 +249,28 @@ export const demoApi = {
     const result = await response.json();
     return result.data;
   },
+
+  /**
+   * Save email when user accesses demo
+   */
+  async saveEmail(email: string, getDemoHeaders: () => Record<string, string>): Promise<void> {
+    const demoHeaders = getDemoHeaders();
+
+    const response = await fetch(`${config.apiUrl}/api/demo/email`, {
+      method: 'POST',
+      headers: {
+        ...demoHeaders,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        window.location.href = '/demo?session_expired=true';
+      }
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to save email');
+    }
+  },
 };
