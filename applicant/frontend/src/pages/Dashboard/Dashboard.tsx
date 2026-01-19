@@ -53,7 +53,7 @@ function getStatusBadge(status: string) {
     case 'under_review':
       return <span className={`${baseClasses} bg-blue-100 text-blue-700`}>Under Review</span>;
     case 'further_review':
-      return <span className={`${baseClasses} bg-purple-100 text-purple-700`}>Further Review</span>;
+      return <span className={`${baseClasses} bg-cyan-100 text-cyan-700`}>Further Review</span>;
     default:
       return <span className={`${baseClasses} bg-gray-100 text-gray-700`}>{status || 'Unknown'}</span>;
   }
@@ -136,7 +136,7 @@ export default function Dashboard() {
                 to="/apply"
                 className="flex items-center gap-2 px-6 py-3 rounded-lg text-white font-medium transition-opacity duration-300 hover:opacity-90"
                 style={{
-                  background: 'linear-gradient(135deg, #3B82F6, #8B5CF6, #EC4899)'
+                  background: 'linear-gradient(135deg, #3B82F6, #06B6D4)'
                 }}
               >
                 <Plus className="w-5 h-5" />
@@ -177,7 +177,7 @@ export default function Dashboard() {
                 to="/apply"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-white font-medium transition-opacity duration-300 hover:opacity-90"
                 style={{
-                  background: 'linear-gradient(135deg, #3B82F6, #8B5CF6, #EC4899)'
+                  background: 'linear-gradient(135deg, #3B82F6, #06B6D4)'
                 }}
               >
                 <Plus className="w-5 h-5" />
@@ -193,7 +193,7 @@ export default function Dashboard() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg flex items-center justify-center">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg flex items-center justify-center">
                         {getStatusIcon(app.final_decision || app.claude_recommendation || app.status)}
                       </div>
                       <div>

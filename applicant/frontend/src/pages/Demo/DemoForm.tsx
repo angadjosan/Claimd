@@ -53,7 +53,7 @@ const AutoFillButton: React.FC = () => {
       <button
         onClick={handleAutoFill}
         disabled={isLoading}
-        className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         <Sparkles className="w-4 h-4" />
         <span>{isLoading ? 'Loading...' : '✨ Auto-fill with Sample Data'}</span>
@@ -88,7 +88,6 @@ const EmailCollectionForm: React.FC<{ onEmailSubmitted: () => void }> = ({ onEma
       // Store in localStorage to remember for this session
       localStorage.setItem('demo_email_collected', 'true');
       localStorage.setItem('demo_email', email);
-      showToast('Email saved successfully!', 'success');
       onEmailSubmitted();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save email';
@@ -123,7 +122,7 @@ const EmailCollectionForm: React.FC<{ onEmailSubmitted: () => void }> = ({ onEma
               placeholder="your.email@example.com"
               required
               disabled={isLoading}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
             />
             {error && (
               <p className="mt-2 text-sm text-red-600">{error}</p>
@@ -132,7 +131,7 @@ const EmailCollectionForm: React.FC<{ onEmailSubmitted: () => void }> = ({ onEma
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full px-6 py-3 bg-gradient-to-r from-[#8B5CF6] to-[#EC4899] text-white font-semibold rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Saving...' : 'Continue to Demo'}
           </button>

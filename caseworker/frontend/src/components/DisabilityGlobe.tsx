@@ -224,7 +224,7 @@ function Modal({ file, onClose }: { file: FileData | null; onClose: () => void }
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4">
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-t-2xl">
+        <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 rounded-t-2xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="bg-white/20 p-2 rounded-lg">
@@ -251,9 +251,9 @@ function Modal({ file, onClose }: { file: FileData | null; onClose: () => void }
               <div className="text-sm text-gray-600 mb-1">Status</div>
               <div className="text-lg font-semibold text-blue-700">{file.status}</div>
             </div>
-            <div className="bg-purple-50 rounded-lg p-4">
+            <div className="bg-cyan-50 rounded-lg p-4">
               <div className="text-sm text-gray-600 mb-1">Date</div>
-              <div className="text-lg font-semibold text-purple-700">{file.date}</div>
+              <div className="text-lg font-semibold text-cyan-700">{file.date}</div>
             </div>
           </div>
 
@@ -312,7 +312,7 @@ export default function DisabilityGlobe() {
               style={{
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
-                backgroundImage: 'linear-gradient(135deg, #3B82F6, #8B5CF6, #EC4899)',
+                backgroundImage: 'linear-gradient(135deg, #3B82F6, #06B6D4)',
                 pointerEvents: 'none',
                 userSelect: 'none',
                 fontFamily: 'serif'
@@ -329,7 +329,7 @@ export default function DisabilityGlobe() {
               to="/dashboard"
               className="inline-flex items-center justify-center px-8 py-3 rounded-lg text-base font-medium text-white pointer-events-auto transition-opacity duration-300 hover:opacity-90"
               style={{
-                background: 'linear-gradient(135deg, #3B82F6, #8B5CF6, #EC4899)'
+                background: 'linear-gradient(135deg, #3B82F6, #06B6D4)'
               }}
             >
               Get Started →
