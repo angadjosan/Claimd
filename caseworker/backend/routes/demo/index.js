@@ -7,11 +7,10 @@ const router = express.Router();
 
 /**
  * POST /api/demo/email
- * Save email when user accesses demo (no session required)
+ * Capture email when user accesses demo (no real persistence)
  */
 router.post('/email', async (req, res) => {
   try {
-    const supabase = req.app.get('supabase');
     const { email } = req.body;
 
     // Validate email
@@ -25,30 +24,20 @@ router.post('/email', async (req, res) => {
     // Normalize email (lowercase, trim)
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Insert email into demo_email_tracking table
-    const { data, error } = await supabase
-      .from('demo_email_tracking')
-      .insert({
-        email: normalizedEmail,
-        demo_session_id: null // No session tracking needed
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('[DEMO] Email tracking error:', error);
-      return res.status(500).json({
-        error: 'Failed to save email',
-        message: error.message
-      });
-    }
+    // For demo, DO NOT persist to the database.
+    // Just log that we "captured" the email so analytics
+    // can still be inferred from logs without real writes.
+    console.log('[DEMO] Email captured (not persisted to DB)', {
+      email: normalizedEmail,
+      timestamp: new Date().toISOString(),
+      demoClientIP: req.demoClientIP || null,
+    });
 
     res.json({
       success: true,
-      message: 'Email saved successfully',
+      message: 'Email captured successfully (demo only, not stored)',
       data: {
-        id: data.id,
-        email: data.email
+        email: normalizedEmail
       }
     });
   } catch (error) {

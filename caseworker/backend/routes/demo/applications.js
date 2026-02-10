@@ -6,7 +6,6 @@ const express = require('express');
 const router = express.Router();
 const {
   buildApplicationDetailResponse,
-  updateAssignmentAccess,
 } = require('../../utils/dashboard/queries');
 
 // Hardcoded demo IDs (must match Supabase data)
@@ -172,9 +171,6 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    // Update assignment access tracking
-    await updateAssignmentAccess(supabase, assignment);
-
     // Get all files for this application
     const { data: files } = await supabase
       .from('application_files')
@@ -200,7 +196,7 @@ router.get('/:id', async (req, res) => {
 
 /**
  * PATCH /api/demo/applications/:id/review-status
- * Update the review status (demo mode)
+ * Update the review status (demo mode - no DB writes)
  */
 router.patch('/:id/review-status', async (req, res) => {
   try {
@@ -241,32 +237,23 @@ router.patch('/:id/review-status', async (req, res) => {
       });
     }
 
-    const updateData = {
+    // For demo, DO NOT write to the database.
+    // Instead, simulate the updated assignment object in-memory.
+    const now = new Date().toISOString();
+    const updatedAssignment = {
+      ...assignment,
       review_status,
-      last_accessed_at: new Date().toISOString()
+      last_accessed_at: now,
+      first_opened_at:
+        assignment.first_opened_at ||
+        (assignment.review_status === 'unopened' && review_status !== 'unopened'
+          ? now
+          : assignment.first_opened_at),
+      completed_at:
+        !assignment.completed_at && review_status === 'completed'
+          ? now
+          : assignment.completed_at,
     };
-
-    if (assignment.review_status === 'unopened' && review_status !== 'unopened') {
-      updateData.first_opened_at = new Date().toISOString();
-    }
-
-    if (review_status === 'completed' && !assignment.completed_at) {
-      updateData.completed_at = new Date().toISOString();
-    }
-
-    const { data: updatedAssignment, error: updateError } = await supabase
-      .from('assigned_applications')
-      .update(updateData)
-      .eq('id', assignment.id)
-      .select()
-      .single();
-
-    if (updateError) {
-      return res.status(500).json({
-        error: 'Failed to update review status',
-        message: updateError.message
-      });
-    }
 
     res.json({
       success: true,
@@ -283,7 +270,7 @@ router.patch('/:id/review-status', async (req, res) => {
 
 /**
  * PATCH /api/demo/applications/:id/reviewer-notes
- * Update reviewer notes (demo mode)
+ * Update reviewer notes (demo mode - no DB writes)
  */
 router.patch('/:id/reviewer-notes', async (req, res) => {
   try {
@@ -316,22 +303,13 @@ router.patch('/:id/reviewer-notes', async (req, res) => {
       });
     }
 
-    const { data: updatedAssignment, error: updateError } = await supabase
-      .from('assigned_applications')
-      .update({
-        reviewer_notes: reviewer_notes || null,
-        last_accessed_at: new Date().toISOString()
-      })
-      .eq('id', assignment.id)
-      .select()
-      .single();
-
-    if (updateError) {
-      return res.status(500).json({
-        error: 'Failed to update reviewer notes',
-        message: updateError.message
-      });
-    }
+    // For demo, DO NOT write to the database.
+    // Simulate the updated assignment object instead.
+    const updatedAssignment = {
+      ...assignment,
+      reviewer_notes: reviewer_notes || null,
+      last_accessed_at: new Date().toISOString(),
+    };
 
     res.json({
       success: true,
@@ -348,7 +326,7 @@ router.patch('/:id/reviewer-notes', async (req, res) => {
 
 /**
  * POST /api/demo/applications/:id/recommendation
- * Submit a recommendation (demo mode)
+ * Submit a recommendation (demo mode - no DB writes)
  */
 router.post('/:id/recommendation', async (req, res) => {
   try {
@@ -389,39 +367,15 @@ router.post('/:id/recommendation', async (req, res) => {
       });
     }
 
-    const { data: updatedAssignment, error: functionError } = await supabase
-      .rpc('submit_recommendation', {
-        p_application_id: applicationId,
-        p_reviewer_id: caseworkerId,
-        p_recommendation: recommendation,
-        p_recommendation_notes: recommendation_notes || null
-      });
-
-    if (functionError) {
-      if (functionError.message.includes('not assigned')) {
-        return res.status(403).json({
-          error: 'Forbidden',
-          message: 'This application is not assigned to you'
-        });
-      }
-      if (functionError.message.includes('not found')) {
-        return res.status(404).json({
-          error: 'Not Found',
-          message: 'Application not found'
-        });
-      }
-      return res.status(500).json({
-        error: 'Failed to submit recommendation',
-        message: functionError.message
-      });
-    }
-
-    if (!updatedAssignment) {
-      return res.status(500).json({
-        error: 'Internal Server Error',
-        message: 'Failed to submit recommendation'
-      });
-    }
+    // For demo, DO NOT invoke the submit_recommendation RPC
+    // or make any writes. Simulate the updated assignment object.
+    const now = new Date().toISOString();
+    const updatedAssignment = {
+      ...assignment,
+      recommendation,
+      recommendation_notes: recommendation_notes || null,
+      last_accessed_at: now,
+    };
 
     res.json({
       success: true,
