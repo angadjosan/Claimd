@@ -178,10 +178,10 @@ export default function DemoApplicationDetail() {
               </div>
               <div className="mt-4 flex gap-3">
                 <button
-                  onClick={() => navigate('/demo/caseworker/dashboard')}
+                  onClick={() => navigate('/demo')}
                   className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
                 >
-                  Back to Dashboard
+                  Back to Demo
                 </button>
                 <button
                   onClick={loadApplication}
@@ -207,11 +207,11 @@ export default function DemoApplicationDetail() {
         <div className="max-w-7xl mx-auto">
           {/* Back Button */}
           <Link
-            to="/demo/caseworker/dashboard"
+            to="/demo"
             className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
+            Back to Demo
           </Link>
 
           {/* Header / Applicant Summary Card */}

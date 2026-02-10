@@ -10,6 +10,7 @@ const getUrlWithProtocol = (url: string, defaultUrl: string) => {
 };
 
 const APPLICANT_URL = getUrlWithProtocol(import.meta.env.VITE_APPLICANT_URL, 'http://localhost:5173');
+const CASEWORKER_URL = getUrlWithProtocol(import.meta.env.VITE_CASEWORKER_URL, 'http://localhost:5191');
 
 export default function Landing() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -35,7 +36,7 @@ export default function Landing() {
             Clai<span className="bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">md</span>
           </a>
           <a
-            href={`${APPLICANT_URL}/demo`}
+            href={`${CASEWORKER_URL}/demo`}
             className="text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 px-6 py-2.5 rounded-full transition-all"
           >
             Try demo
@@ -74,7 +75,7 @@ export default function Landing() {
           {/* CTA */}
           <div className="mt-10 flex items-center justify-center gap-6">
             <a
-              href={`${APPLICANT_URL}/demo`}
+              href={`${CASEWORKER_URL}/demo`}
               className="inline-flex items-center justify-center px-10 py-5 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold text-lg rounded-full hover:shadow-2xl hover:shadow-cyan-500/50 transition-all hover:scale-105 group"
             >
               Try the demo
@@ -241,7 +242,7 @@ export default function Landing() {
           </p>
 
           <a
-            href={`${APPLICANT_URL}/demo`}
+            href={`${CASEWORKER_URL}/demo`}
             className="inline-flex items-center justify-center px-12 py-6 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-bold text-xl rounded-full hover:shadow-2xl hover:shadow-cyan-500/50 transition-all hover:scale-105 group"
           >
             Start demo

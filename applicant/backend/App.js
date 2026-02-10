@@ -7,7 +7,6 @@ const { createClient } = require('@supabase/supabase-js');
 
 const publicRoutes = require('./routes/public');
 const privateRoutes = require('./routes/private');
-const demoModeMiddleware = require('./middleware/demo');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -144,12 +143,6 @@ app.get('/api/health', (req, res) => {
     version: process.env.npm_package_version || '1.0.0'
   });
 });
-
-// Demo routes (with demo middleware - MUST be before private routes)
-// Demo middleware only activates on /api/demo/* routes
-const demoRoutes = require('./routes/demo');
-app.use('/api/demo', demoModeMiddleware, demoRoutes);
-app.use('/demo', demoModeMiddleware, demoRoutes);
 
 // Public routes (with public rate limiter)
 // Support both /api/public and /public (for when API Gateway strips /api)

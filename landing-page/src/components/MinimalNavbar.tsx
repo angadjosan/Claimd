@@ -23,7 +23,7 @@ export default function MinimalNavbar() {
           {/* Navigation */}
           <div className="flex items-center gap-4">
             <a
-              href={`${APPLICANT_URL}/demo`}
+              href={`${CASEWORKER_URL}/demo`}
               className="text-sm font-semibold text-accent hover:text-accent/80 transition-colors flex items-center gap-1"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

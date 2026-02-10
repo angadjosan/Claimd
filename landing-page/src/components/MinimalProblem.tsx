@@ -15,7 +15,7 @@ export default function MinimalProblem() {
           Caseworkers spend 8-10 minutes per application. AI does it in 30 seconds.
         </h2>
         <a
-          href={`${getUrlWithProtocol(import.meta.env.VITE_APPLICANT_URL, 'http://localhost:5173')}/demo`}
+          href={`${getUrlWithProtocol(import.meta.env.VITE_CASEWORKER_URL, 'http://localhost:5191')}/demo`}
           className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-accent text-accent-foreground font-semibold rounded-lg hover:bg-accent/90 transition-all shadow-md hover:shadow-lg"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

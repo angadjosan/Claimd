@@ -11,7 +11,7 @@ import { DemoProvider } from './context/DemoContext';
 const AuthPage = lazy(() => import('./pages/Auth/Auth'));
 const ApplicationDetail = lazy(() => import('./pages/Dashboard/ApplicationDetail'));
 const NotFound = lazy(() => import('./pages/NotFound'));
-const DemoDashboard = lazy(() => import('./pages/Demo/DemoDashboard'));
+const Demo = lazy(() => import('./pages/Demo/Demo'));
 const DemoApplicationDetail = lazy(() => import('./pages/Demo/DemoApplicationDetail'));
 
 function App() {
@@ -43,17 +43,13 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              {/* Demo routes - wrapped with DemoProvider */}
+              {/* Demo routes */}
               <Route 
-                path="/demo/caseworker/dashboard" 
-                element={
-                  <DemoProvider>
-                    <DemoDashboard />
-                  </DemoProvider>
-                } 
+                path="/demo" 
+                element={<Demo />} 
               />
               <Route 
-                path="/demo/caseworker/dashboard/applications/:id" 
+                path="/demo/applications/:id" 
                 element={
                   <DemoProvider>
                     <DemoApplicationDetail />

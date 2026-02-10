@@ -30,14 +30,14 @@ CloudFront → S3 (React) + API Gateway → Lambda (Node.js/Python) → Supabase
 - **Backend**: Port 3002 (dev) → Lambda `claimd-caseworker-api`, Entry: `App.js`
 
 ### Demo Mode
-- **Public demo routes** (no authentication required):
-  - Applicant: `/demo` (form), `/demo/dashboard`
-  - Caseworker: `/demo/caseworker/dashboard`, `/demo/caseworker/dashboard/applications/:id`
-- **Backend**: `/api/demo/*` routes (demo middleware handles session isolation)
-- **Important**: When updating dashboard/application detail components, **MUST update both**:
-  - Live/production versions (`Dashboard.tsx`, `ApplicationDetail.tsx`, `ActionPanel.tsx`)
-  - Demo versions (`DemoDashboard.tsx`, `DemoApplicationDetail.tsx`, `DemoActionPanel.tsx`)
-- Demo components use `demoApi` service and `DemoContext`; live components use `api` service and auth context
+- **Public demo route** (no authentication required):
+ - Caseworker: `/demo` (email collection) → `/demo/applications/:id` (hardcoded application)
+- **Backend**: `/api/demo/*` routes (demo middleware, no session management needed)
+- **Environment Variables**:
+ - `DEMO_CASEWORKER_USER_ID`: UUID of demo caseworker user
+ - `DEMO_APPLICATION_ID`: UUID of hardcoded demo application (must be assigned to demo caseworker)
+ - `VITE_DEMO_APPLICATION_ID`: Frontend env var for demo application ID
+- Demo components use `demoApiService` and `DemoContext`; live components use `apiService` and auth context
 
 ### AI Processing Service (`ai-app-processing-service/`)
 - **Runtime**: Python 3.13 Lambda `claimd-ai-worker`

@@ -1,8 +1,8 @@
 import { config } from '../config/env';
-import type { ApplicationListItem, ApplicationDetail } from './api';
+import type { ApplicationDetail } from './api';
 
 // Re-export types for convenience
-export type { ApplicationListItem, ApplicationDetail };
+export type { ApplicationDetail };
 
 interface ApiResponse<T> {
   success: boolean;
@@ -13,7 +13,7 @@ interface ApiResponse<T> {
 
 /**
  * Demo API service for caseworker frontend
- * Wraps existing API functions but adds demo mode headers and routes to demo endpoints
+ * Simplified - no session management needed
  */
 class DemoApiService {
   private async fetchWithDemoHeaders(
@@ -33,10 +33,6 @@ class DemoApiService {
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        // Session expired, redirect to start new demo
-        window.location.href = '/demo/caseworker/dashboard?session_expired=true';
-      }
       const error = await response.json().catch(() => ({ message: 'Request failed' }));
       throw new Error(error.message || error.error || 'Request failed');
     }
@@ -44,20 +40,12 @@ class DemoApiService {
     return response.json();
   }
 
-  async getApplications(getDemoHeaders: () => Record<string, string>): Promise<ApplicationListItem[]> {
-    const response: ApiResponse<ApplicationListItem[]> = await this.fetchWithDemoHeaders(
-      `${config.apiUrl}/api/demo/dashboard/applications`,
-      getDemoHeaders
-    );
-    return response.data;
-  }
-
   async getApplicationDetail(
     applicationId: string,
     getDemoHeaders: () => Record<string, string>
   ): Promise<ApplicationDetail> {
     const response: ApiResponse<ApplicationDetail> = await this.fetchWithDemoHeaders(
-      `${config.apiUrl}/api/demo/dashboard/applications/${applicationId}`,
+      `${config.apiUrl}/api/demo/applications/${applicationId}`,
       getDemoHeaders
     );
     return response.data;
@@ -69,7 +57,7 @@ class DemoApiService {
     getDemoHeaders: () => Record<string, string>
   ): Promise<any> {
     const response: ApiResponse<any> = await this.fetchWithDemoHeaders(
-      `${config.apiUrl}/api/demo/dashboard/applications/${applicationId}/review-status`,
+      `${config.apiUrl}/api/demo/applications/${applicationId}/review-status`,
       getDemoHeaders,
       {
         method: 'PATCH',
@@ -85,7 +73,7 @@ class DemoApiService {
     getDemoHeaders: () => Record<string, string>
   ): Promise<any> {
     const response: ApiResponse<any> = await this.fetchWithDemoHeaders(
-      `${config.apiUrl}/api/demo/dashboard/applications/${applicationId}/reviewer-notes`,
+      `${config.apiUrl}/api/demo/applications/${applicationId}/reviewer-notes`,
       getDemoHeaders,
       {
         method: 'PATCH',
@@ -102,7 +90,7 @@ class DemoApiService {
     recommendationNotes?: string
   ): Promise<any> {
     const response: ApiResponse<any> = await this.fetchWithDemoHeaders(
-      `${config.apiUrl}/api/demo/dashboard/applications/${applicationId}/recommendation`,
+      `${config.apiUrl}/api/demo/applications/${applicationId}/recommendation`,
       getDemoHeaders,
       {
         method: 'POST',
