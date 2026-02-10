@@ -9,7 +9,6 @@ const getUrlWithProtocol = (url: string, defaultUrl: string) => {
   return envUrl;
 };
 
-const APPLICANT_URL = getUrlWithProtocol(import.meta.env.VITE_APPLICANT_URL, 'http://localhost:5173');
 const CASEWORKER_URL = getUrlWithProtocol(import.meta.env.VITE_CASEWORKER_URL, 'http://localhost:5191');
 
 export default function Landing() {

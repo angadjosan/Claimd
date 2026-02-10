@@ -25,37 +25,24 @@ const demoRateLimiter = rateLimit({
 /**
  * Demo Mode Middleware
  * Validates demo mode header and attaches demo user info to request
+ * NOTE: Demo IDs are hardcoded here for simplicity.
  */
-const demoModeMiddleware = async (req, res, next) => {
-  // 1. Route-based check: ONLY works on /api/demo/* routes
-  if (!req.path.startsWith('/api/demo/') && !req.path.startsWith('/demo/')) {
-    // If not a demo route, ignore demo headers and continue to normal auth
-    return next();
-  }
+const DEMO_CASEWORKER_USER_ID = '382d0573-1ba9-43f9-9697-9fc9291ba42a';
 
-  // 2. For email endpoint, no header required (public demo entry point)
-  if (req.path === '/api/demo/email' || req.path === '/demo/email') {
+const demoModeMiddleware = async (req, res, next) => {
+  // 1. For email endpoint, no header required (public demo entry point)
+  // When mounted at /api/demo or /demo, the path here will be just "/email"
+  if (req.path === '/email') {
     // Apply rate limiting
     return demoRateLimiter(req, res, () => {
-      // Load demo user IDs from env vars
-      const demoCaseworkerId = process.env.DEMO_CASEWORKER_USER_ID;
-      
-      if (!demoCaseworkerId) {
-        console.error('Demo caseworker ID not configured');
-        return res.status(500).json({
-          error: 'Demo Mode Unavailable',
-          message: 'Demo mode is not properly configured'
-        });
-      }
-
       req.isDemoMode = true;
-      req.demoCaseworkerId = demoCaseworkerId;
+      req.demoCaseworkerId = DEMO_CASEWORKER_USER_ID;
       
       next();
     });
   }
 
-  // 3. For other demo endpoints, validate X-Demo-Mode header
+  // 2. For other demo endpoints, validate X-Demo-Mode header
   const demoModeHeader = req.headers['x-demo-mode'];
   if (demoModeHeader !== 'true') {
     return res.status(400).json({
@@ -64,28 +51,17 @@ const demoModeMiddleware = async (req, res, next) => {
     });
   }
 
-  // 4. Apply rate limiting
+  // 3. Apply rate limiting
   return demoRateLimiter(req, res, () => {
-    // 5. Load demo user IDs from env vars
-    const demoCaseworkerId = process.env.DEMO_CASEWORKER_USER_ID;
-
-    if (!demoCaseworkerId) {
-      console.error('Demo caseworker ID not configured');
-      return res.status(500).json({
-        error: 'Demo Mode Unavailable',
-        message: 'Demo mode is not properly configured'
-      });
-    }
-
-    // 6. Get real client IP (handle X-Forwarded-For safely)
+    // 5. Get real client IP (handle X-Forwarded-For safely)
     const clientIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
 
-    // 7. Attach demo user info to req object
+    // 6. Attach demo user info to req object
     req.isDemoMode = true;
-    req.demoCaseworkerId = demoCaseworkerId;
+    req.demoCaseworkerId = DEMO_CASEWORKER_USER_ID;
     req.demoClientIP = clientIP;
 
-    // 8. Log demo mode access for audit
+    // 7. Log demo mode access for audit
     console.log('[DEMO] Demo mode request', {
       path: req.path,
       method: req.method,
@@ -93,7 +69,7 @@ const demoModeMiddleware = async (req, res, next) => {
       timestamp: new Date().toISOString()
     });
 
-    // 9. Continue to route handler (skips normal auth middleware)
+    // 8. Continue to route handler (skips normal auth middleware)
     next();
   });
 };

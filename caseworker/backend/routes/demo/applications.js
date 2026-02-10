@@ -9,6 +9,9 @@ const {
   updateAssignmentAccess,
 } = require('../../utils/dashboard/queries');
 
+// Hardcoded demo IDs (must match Supabase data)
+const DEMO_APPLICATION_ID = '7239184c-4d9a-48f5-936b-39428db1d6e3';
+
 /**
  * GET /api/demo/applications/:id
  * Get detailed application data for demo (hardcoded application)
@@ -16,9 +19,9 @@ const {
 router.get('/:id', async (req, res) => {
   try {
     const supabase = req.app.get('supabase');
-    const caseworkerId = req.demoCaseworkerId; // From env var
+    const caseworkerId = req.demoCaseworkerId;
     const applicationId = req.params.id;
-    const demoApplicationId = process.env.DEMO_APPLICATION_ID;
+    const demoApplicationId = DEMO_APPLICATION_ID;
 
     // Log for debugging
     console.log('[DEMO] Application request', {
@@ -26,15 +29,6 @@ router.get('/:id', async (req, res) => {
       configuredId: demoApplicationId,
       caseworkerId
     });
-
-    // Verify DEMO_APPLICATION_ID is configured
-    if (!demoApplicationId) {
-      console.error('[DEMO] DEMO_APPLICATION_ID not configured in environment variables');
-      return res.status(500).json({
-        error: 'Configuration Error',
-        message: 'Demo application ID not configured. Please set DEMO_APPLICATION_ID in your .env file and restart the server.'
-      });
-    }
 
     // Verify this is the demo application ID
     if (applicationId !== demoApplicationId) {
@@ -48,22 +42,93 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    // Get assignment for demo caseworker
-    const { data: assignment, error: assignmentError } = await supabase
+    // First verify assignment exists
+    const { data: assignmentCheck, error: assignmentCheckError } = await supabase
+      .from('assigned_applications')
+      .select('id, application_id, reviewer_id, review_status')
+      .eq('application_id', applicationId)
+      .eq('reviewer_id', caseworkerId)
+      .maybeSingle();
+
+    if (assignmentCheckError) {
+      console.error('[DEMO] Assignment check error:', assignmentCheckError);
+      return res.status(500).json({
+        error: 'Database Error',
+        message: 'Failed to check assignment',
+        details: assignmentCheckError.message
+      });
+    }
+
+    if (!assignmentCheck) {
+      console.log('[DEMO] Assignment not found', {
+        applicationId,
+        caseworkerId
+      });
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Demo assignment not found. Please ensure the demo application is assigned to the demo caseworker.'
+      });
+    }
+
+    // Now get the full assignment with application data
+    let assignment;
+    const { data: assignmentWithApp, error: assignmentError } = await supabase
       .from('assigned_applications')
       .select(`
         *,
         applications!inner (*)
       `)
       .eq('application_id', applicationId)
-      .eq('reviewer_id', caseworkerId) // Demo caseworker only
+      .eq('reviewer_id', caseworkerId)
       .single();
 
-    if (assignmentError || !assignment) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Demo assignment not found. Please ensure the demo application is assigned to the demo caseworker.'
+    if (assignmentError || !assignmentWithApp) {
+      console.error('[DEMO] Full assignment query error:', {
+        error: assignmentError,
+        applicationId,
+        caseworkerId,
+        code: assignmentError?.code,
+        message: assignmentError?.message
       });
+      
+      // If join fails, try getting application separately
+      const { data: application, error: appError } = await supabase
+        .from('applications')
+        .select('*')
+        .eq('id', applicationId)
+        .single();
+
+      if (appError || !application) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Application not found',
+          details: appError?.message
+        });
+      }
+
+      // Get assignment without join
+      const { data: assignmentOnly, error: assignmentOnlyError } = await supabase
+        .from('assigned_applications')
+        .select('*')
+        .eq('application_id', applicationId)
+        .eq('reviewer_id', caseworkerId)
+        .single();
+
+      if (assignmentOnlyError || !assignmentOnly) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Assignment not found',
+          details: assignmentOnlyError?.message
+        });
+      }
+
+      // Manually combine the data
+      assignment = {
+        ...assignmentOnly,
+        applications: application
+      };
+    } else {
+      assignment = assignmentWithApp;
     }
 
     // Get assigned_by user info if exists
@@ -142,7 +207,7 @@ router.patch('/:id/review-status', async (req, res) => {
     const supabase = req.app.get('supabase');
     const caseworkerId = req.demoCaseworkerId;
     const applicationId = req.params.id;
-    const demoApplicationId = process.env.DEMO_APPLICATION_ID;
+    const demoApplicationId = DEMO_APPLICATION_ID;
     const { review_status } = req.body;
 
     // Verify this is the demo application
@@ -225,7 +290,7 @@ router.patch('/:id/reviewer-notes', async (req, res) => {
     const supabase = req.app.get('supabase');
     const caseworkerId = req.demoCaseworkerId;
     const applicationId = req.params.id;
-    const demoApplicationId = process.env.DEMO_APPLICATION_ID;
+    const demoApplicationId = DEMO_APPLICATION_ID;
     const { reviewer_notes } = req.body;
 
     // Verify this is the demo application
@@ -290,7 +355,7 @@ router.post('/:id/recommendation', async (req, res) => {
     const supabase = req.app.get('supabase');
     const caseworkerId = req.demoCaseworkerId;
     const applicationId = req.params.id;
-    const demoApplicationId = process.env.DEMO_APPLICATION_ID;
+    const demoApplicationId = DEMO_APPLICATION_ID;
     const { recommendation, recommendation_notes } = req.body;
 
     // Verify this is the demo application
@@ -380,7 +445,7 @@ router.get('/:id/files', async (req, res) => {
     const supabase = req.app.get('supabase');
     const caseworkerId = req.demoCaseworkerId;
     const applicationId = req.params.id;
-    const demoApplicationId = process.env.DEMO_APPLICATION_ID;
+    const demoApplicationId = DEMO_APPLICATION_ID;
 
     // Verify this is the demo application
     if (applicationId !== demoApplicationId) {
@@ -441,7 +506,7 @@ router.get('/:id/files/:fileId/download', async (req, res) => {
     const supabase = req.app.get('supabase');
     const caseworkerId = req.demoCaseworkerId;
     const applicationId = req.params.id;
-    const demoApplicationId = process.env.DEMO_APPLICATION_ID;
+    const demoApplicationId = DEMO_APPLICATION_ID;
     const fileId = req.params.fileId;
 
     // Verify this is the demo application

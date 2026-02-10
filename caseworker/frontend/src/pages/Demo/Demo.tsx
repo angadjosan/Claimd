@@ -29,8 +29,8 @@ export default function Demo() {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  // Hardcoded demo application ID (will be provided by user)
-  const DEMO_APPLICATION_ID = import.meta.env.VITE_DEMO_APPLICATION_ID || '';
+  // Hardcoded demo application ID (matches backend demo configuration)
+  const DEMO_APPLICATION_ID = '7239184c-4d9a-48f5-936b-39428db1d6e3';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
